@@ -43,6 +43,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var radius: Double = 36
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        migrateSettings()
         defaults.register(defaults: ["enabled": true, "showTop": true, "showBottom": true, "radius": 36.0])
         enabled = defaults.bool(forKey: "enabled")
         showTop = defaults.bool(forKey: "showTop")
@@ -55,6 +56,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         rebuildMenu()
         refreshWindows()
+    }
+
+    private func migrateSettings() {
+        let current = defaults.persistentDomain(forName: "ru.egormerkushev.displaycorners") ?? [:]
+        guard current["migratedPreviousSettings"] == nil else { return }
+        let previous = defaults.persistentDomain(forName: "local.displaycorners.app") ?? [:]
+        for key in ["enabled", "showTop", "showBottom", "radius"] where current[key] == nil {
+            if let value = previous[key] {
+                defaults.set(value, forKey: key)
+            }
+        }
+        defaults.set(true, forKey: "migratedPreviousSettings")
     }
 
     @objc private func screensChanged() { refreshWindows() }
@@ -87,11 +100,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         title.isEnabled = false
         menu.addItem(title)
         menu.addItem(.separator())
-        addToggle(to: menu, title: "Скругления включены", action: #selector(toggleEnabled), on: enabled)
-        addToggle(to: menu, title: "Верхние углы", action: #selector(toggleTop), on: showTop)
-        addToggle(to: menu, title: "Нижние углы", action: #selector(toggleBottom), on: showBottom)
+        addToggle(to: menu, title: NSLocalizedString("Rounded corners enabled", comment: "Toggle all corner masks"), action: #selector(toggleEnabled), on: enabled)
+        addToggle(to: menu, title: NSLocalizedString("Top corners", comment: "Toggle the top corner masks"), action: #selector(toggleTop), on: showTop)
+        addToggle(to: menu, title: NSLocalizedString("Bottom corners", comment: "Toggle the bottom corner masks"), action: #selector(toggleBottom), on: showBottom)
         menu.addItem(.separator())
-        let label = NSMenuItem(title: "Радиус: \(Int(radius)) pt", action: nil, keyEquivalent: "")
+        let label = NSMenuItem(title: radiusTitle, action: nil, keyEquivalent: "")
         label.isEnabled = false
         menu.addItem(label)
         let sliderItem = NSMenuItem()
@@ -103,9 +116,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         sliderItem.view = container
         menu.addItem(sliderItem)
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "Завершить Display Corners", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: NSLocalizedString("Quit Display Corners", comment: "Quit the application"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
         statusItem.menu = menu
+    }
+
+    private var radiusTitle: String {
+        String.localizedStringWithFormat(
+            NSLocalizedString("Radius: %lld pt", comment: "Corner radius in points"), Int64(radius)
+        )
     }
 
     private func addToggle(to menu: NSMenu, title: String, action: Selector, on: Bool) {
@@ -122,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         radius = sender.doubleValue.rounded()
         defaults.set(radius, forKey: "radius")
         // Keep the slider alive while it is being dragged.
-        statusItem.menu?.item(at: 6)?.title = "Радиус: \(Int(radius)) pt"
+        statusItem.menu?.item(at: 6)?.title = radiusTitle
         refreshWindows()
     }
 }
