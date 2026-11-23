@@ -1,0 +1,78 @@
+apiVersion: specpm.dev/v0.1
+kind: BoundarySpec
+metadata:
+  id: displaycorners.agent_corner.presentation
+  title: Агентские сессии в программном скруглении дисплея
+  version: 0.1.0
+  status: draft
+intent:
+  summary: Пользователь замечает в углу запрос агента, видит при наведении, какая сессия ждёт, и может перейти к ней.
+scope:
+  boundedContext: displaycorners_agent_corner
+  includes:
+    - Нижний правый угол прямоугольного дисплея с видимой программной маской Display Corners.
+    - Один общий индикатор и список сессий Codex и Claude Code.
+  excludes:
+    - Размещение индикатора на дисплее с физически скруглённым углом.
+    - Выбор API, установка hooks и реализация перехода в конкретный клиент.
+    - Quick actions и выдача разрешений агенту из меню.
+provides:
+  capabilities:
+    - id: displaycorners.agent_corner.presentation_contract
+      role: primary
+      summary: Согласованный контракт для реализации и проверки индикатора, списка и выбора сессии.
+requires:
+  capabilities: []
+interfaces:
+  inbound:
+    - id: session_update
+      kind: event
+      summary: Источник сообщает идентичность сессии в своём клиенте, проект, агент и наблюдаемый статус для показа.
+    - id: corner_interaction
+      kind: event
+      summary: Наведение на индикатор раскрывает список. Щелчок по строке выбирает соответствующую сессию.
+  outbound:
+    - id: open_session
+      kind: event
+      summary: Выбор строки адресован исходному клиенту и конкретной сессии, даже если несколько сессий работают в одном проекте.
+constraints:
+  - id: indicator_on_mask
+    level: MUST
+    statement: Весь знак помещается среди чёрных пикселей программной маски в пределах адресуемой части экрана. При открытии списка знак остаётся на месте.
+  - id: concentric_menu
+    level: MUST
+    statement: В эталоне внешний радиус равен 24 pt. Правая и нижняя стороны меню отстоят от соответствующих краёв экрана на 4 pt. Нижняя правая дуга меню имеет радиус 20 pt и общий центр с дугой маски, так что зазор на всей дуге тоже равен 4 pt.
+  - id: quiet_material
+    level: SHOULD
+    statement: Меню использует мягко тонированную полупрозрачную поверхность с тонкой кромкой и читаемыми подписями. Яркий блик и объёмный ободок в согласованный облик не входят.
+  - id: attention_priority
+    level: MUST
+    statement: Пока хотя бы одна сессия ждёт ответа или разрешения пользователя, в маске виден янтарный ромб. Такие сессии стоят в списке выше работающих. Работа обозначена синим кружком. В каждой строке видны проект, агент и текст состояния.
+  - id: resolved_attention
+    level: MUST
+    statement: Если после ответа источник сообщает, что сессия продолжила работу, её запрос больше не учитывается как ожидающий. Если все сессии работают, общий знак становится синим. При отсутствии активных сессий остаётся обычная маска.
+  - id: row_navigation
+    level: MUST
+    statement: Наведение показывает меню без перевода фокуса к агенту. Из индикатора можно перевести указатель в список. Для перехода пользователь нажимает на всю строку. Оба ряда имеют одинаковое действие и оформление без отдельной стрелки.
+effects:
+  sideEffects:
+    - id: request_session_navigation
+      kind: event_emit
+      summary: Щелчок инициирует переход к выбранной сессии. Запросы разрешений обрабатывает её клиент.
+evidence:
+  - id: accepted_visual
+    kind: example
+    path: Design/agent-corner-24pt.svg
+    supports: [constraints.indicator_on_mask, constraints.concentric_menu, constraints.quiet_material, constraints.attention_priority]
+  - id: review_scenario
+    kind: documentation
+    path: Design/agent-corner.md
+    supports: [intent.summary, scope, provides.capabilities.displaycorners.agent_corner.presentation_contract, interfaces, constraints, effects]
+provenance:
+  sourceConfidence:
+    intent: high
+    boundary: high
+    behavior: unknown
+  notes:
+    - SVG сохраняет утверждённый визуальный образец. Сценарий описывает ожидаемую проверку взаимодействия. Подтверждения работы функции в приложении пока нет.
+implementationBindings: []

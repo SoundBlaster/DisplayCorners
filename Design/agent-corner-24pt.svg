@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="920" height="280" viewBox="0 0 920 280" role="img" aria-label="Угол Display Corners до и после наведения, радиус экрана 24 pt">
+<defs>
+  <linearGradient id="wall" x2="95%" y2="85%"><stop stop-color="#bdd8fc"/><stop offset=".52" stop-color="#a5a8ef"/><stop offset="1" stop-color="#8a76c7"/></linearGradient>
+  <linearGradient id="glass" x2="1" y2=".5"><stop stop-color="#e0e6fa"/><stop offset="1" stop-color="#d9d3f1"/></linearGradient>
+  <clipPath id="clip"><path d="M0 0H447V243A24 24 0 0 1 423 267H0Z"/></clipPath>
+  <g id="corner"><rect width="456" height="280" fill="#202126"/><rect width="447" height="267" fill="#040406"/><g clip-path="url(#clip)"><rect width="447" height="267" fill="url(#wall)"/><path d="M-15 198Q116 169 242 77T495 -28V-6Q401 4 266 97T-15 203Z" fill="#ced7fa" opacity=".7"/></g><rect x="440.25" y="260.25" width="3.5" height="3.5" rx="1.2" transform="rotate(45 442 262)" fill="#ffbe56"/></g>
+</defs>
+<rect width="920" height="280" fill="#14151a"/><use xlink:href="#corner"/>
+<g transform="translate(464)"><use xlink:href="#corner"/>
+<rect x="137" y="149" width="306" height="114" rx="20" fill="url(#glass)" fill-opacity=".93"/>
+<g font-family="-apple-system, Helvetica Neue, sans-serif">
+<rect x="154" y="164" width="8" height="8" rx="2" transform="rotate(45 158 168)" fill="#e9a532"/>
+<text x="174" y="173" font-size="14" font-weight="bold" fill="#202032">SessionMonitor</text><text x="350" y="173" font-size="12" fill="#515266">Claude Code</text>
+<text x="174" y="191" font-size="12" fill="#414254">Ждёт разрешения</text><path d="M174 205H427" stroke="#545469" opacity=".18"/>
+<circle cx="158" cy="224" r="4.5" fill="#348aeb"/>
+<text x="174" y="229" font-size="14" font-weight="bold" fill="#202032">DisplayCorners</text><text x="350" y="229" font-size="12" fill="#515266">Codex</text>
+<text x="174" y="247" font-size="12" fill="#414254">Выполняет тесты</text></g></g></svg>

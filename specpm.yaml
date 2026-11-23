@@ -1,0 +1,21 @@
+apiVersion: specpm.dev/v0.1
+kind: SpecPackage
+metadata:
+  id: displaycorners.agent_corner
+  name: Display Corners — агентский угол
+  version: 0.1.0
+  summary: Контракт представления агентских сессий в программно скруглённом углу дисплея.
+  license: MIT
+  authors:
+    - name: Egor Merkushev
+specs:
+  - path: specs/agent-corner.spec.yaml
+index:
+  provides:
+    capabilities:
+      - displaycorners.agent_corner.presentation_contract
+  requires:
+    capabilities: []
+compatibility:
+  platforms: [macos]
+keywords: [macos, displaycorners, codex, claude-code]
