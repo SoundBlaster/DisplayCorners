@@ -1,0 +1,67 @@
+apiVersion: specpm.dev/v0.1
+kind: BoundarySpec
+metadata:
+  id: displaycorners.harness_adapter
+  title: Абстрактный протокол адаптера агентского harness
+  version: 0.1.0
+  status: draft
+intent:
+  summary: Единое представление сессий разных harness и переход к выбранной сессии.
+scope:
+  boundedContext: harness_adapter_contract
+  includes:
+    - Возможности адаптера, наблюдения сессий, актуальность и запрос перехода.
+  excludes:
+    - Конкретный транспорт, установка hooks и API конкретного клиента.
+    - Ответы агенту, изменение разрешений и выполнение команд.
+    - Политика отображения завершённых сессий и ошибок harness.
+provides:
+  capabilities:
+    - id: displaycorners.harness_adapter.protocol_contract
+      role: primary
+      summary: Контракт между потребителем состояний и адаптером harness.
+requires:
+  capabilities: []
+interfaces:
+  inbound:
+    - id: adapter_exchange
+      kind: event
+      summary: Адаптер сообщает возможности и наблюдения согласно протоколу.
+  outbound:
+    - id: navigation_request
+      kind: event
+      summary: Потребитель адресует запрос открытия конкретной сессии её адаптеру.
+constraints:
+  - id: identity_and_capabilities
+    level: MUST
+    statement: Адаптер сообщает идентичность источника и сессий, поддержку наблюдаемых состояний и перехода. Отсутствующие возможности обозначаются явно.
+  - id: evidence_bounded_status
+    level: MUST
+    statement: Адаптер сообщает работу и ожидание пользователя только при подтверждении со стороны harness. Неизвестное состояние не приравнивается к работе, ожиданию или завершению.
+  - id: snapshot_and_freshness
+    level: MUST
+    statement: Адаптер предоставляет снимок наблюдаемых сессий с признаком полноты и подтверждает актуальность данных. Истечение таймаута делает данные устаревшими, но не доказывает завершение работы или ответ пользователя.
+  - id: navigation_outcome
+    level: MUST
+    statement: Запрос перехода содержит идентичности адаптера и сессии. Результат подтверждает только то, что действительно известно адаптеру.
+  - id: protocol_scope
+    level: MUST
+    statement: Контракт определяет смысл обмена, а не конкретную сериализацию, доставку или возможности отдельного клиента.
+effects:
+  sideEffects:
+    - id: navigation
+      kind: event_emit
+      summary: Запрос адаптеру перехода в выбранную сессию.
+evidence:
+  - id: protocol
+    kind: documentation
+    path: specs/harness-adapter.md
+    supports: [intent.summary, scope, provides.capabilities.displaycorners.harness_adapter.protocol_contract, interfaces, constraints, effects]
+provenance:
+  sourceConfidence:
+    intent: high
+    boundary: medium
+    behavior: unknown
+  notes:
+    - Контракт предложен для разных harness. Реализация и поддержка конкретными клиентами ещё не подтверждены.
+implementationBindings: []
