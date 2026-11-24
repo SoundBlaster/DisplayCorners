@@ -1,0 +1,22 @@
+# Mock Agent — debug
+
+A disposable agent simulator and an opt-in debug-only client in Display Corners. The simulator serves a local Unix socket in a private temporary directory. It sends one complete snapshot and subsequent `update` / `remove` messages using the draft JSONL protocol. It does not monitor real agents, implement navigation or claim full protocol conformance.
+
+1. Start the simulator in a terminal and copy the printed socket path:
+
+   ```sh
+   python3 prototypes/mock-agent/mock_agent.py
+   ```
+
+2. In a second terminal, build and launch the debug application. Use a build directory outside the checkout:
+
+   ```sh
+   BUILD_ROOT=/path/to/build SWIFTPM_CACHE=/path/to/cache \
+     prototypes/mock-agent/run-debug.sh /path/from/SOCKET
+   ```
+
+3. In the simulator's terminal enter `working`, `waiting`, `unknown`, `remove`, or `quit`. A state command restores a removed session. Closing the simulator ends the connection. Stop the debug app with Ctrl-C in its terminal, or through its menu-bar item.
+
+The debug window shows the received session. On enabled bottom-right masks, working draws a blue dot and waiting draws an orange dot; unknown, an empty snapshot and disconnect clear it. At radii below 12 pt the test dot is omitted. The application uses a separate debug bundle identifier and preferences. Release builds do not contain the debug client or draw the mock indicator.
+
+The actual display-corner hover menu, session navigation, adapter freshness timeouts, reconnect and real agent integrations are not implemented by this prototype. The mock is deliberately interactive and does not infer real agent activity.

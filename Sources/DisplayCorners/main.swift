@@ -4,6 +4,9 @@ import CornerGeometry
 @MainActor
 final class CornerView: NSView {
     let corner: Corner
+    #if DEBUG
+    var mockState: String?
+    #endif
 
     init(corner: Corner, frame: NSRect) {
         self.corner = corner
@@ -29,6 +32,13 @@ final class CornerView: NSView {
         context.closePath()
         context.fillPath()
         context.restoreGState()
+        #if DEBUG
+        if corner == .bottomRight, let mockState, r >= 12 {
+            (mockState == "waiting_for_user" ? NSColor.systemOrange : NSColor.systemBlue).setFill()
+            let scale = r / 36
+            NSBezierPath(ovalIn: NSRect(x: r - 7 * scale, y: 2 * scale, width: 5 * scale, height: 5 * scale)).fill()
+        }
+        #endif
     }
 }
 
@@ -41,6 +51,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var showTop = true
     private var showBottom = true
     private var radius: Double = 36
+    #if DEBUG
+    private var mockClient: MockDebugClient?
+    private var mockState: String?
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         migrateSettings()
@@ -56,6 +70,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         rebuildMenu()
         refreshWindows()
+        #if DEBUG
+        if let path = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"], !path.isEmpty {
+            let client = MockDebugClient(path: path)
+            client.onChange = { [weak self] state in
+                self?.mockState = state
+                self?.refreshWindows()
+            }
+            mockClient = client
+            client.start()
+        }
+        #endif
     }
 
     private func migrateSettings() {
@@ -87,7 +112,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)) - 1)
                 window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
                 window.hidesOnDeactivate = false
-                window.contentView = CornerView(corner: corner, frame: NSRect(origin: .zero, size: frame.size))
+                let view = CornerView(corner: corner, frame: NSRect(origin: .zero, size: frame.size))
+                #if DEBUG
+                view.mockState = mockState
+                #endif
+                window.contentView = view
                 window.orderFrontRegardless()
                 windows.append(window)
             }
