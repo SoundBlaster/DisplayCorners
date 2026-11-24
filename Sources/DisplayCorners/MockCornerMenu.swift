@@ -26,11 +26,15 @@ final class MockCornerMenu {
     private var lastInside = Date.distantPast
     private var radius: CGFloat = 36
     private var enabled = false
+    private let fixture = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_FIXTURE"] == "1"
 
     private var capacity: Int { max(1, Int((screenFrame.height - 8) / rowHeight)) }
 
     func update(sessions: [AgentSession], radius: CGFloat, enabled: Bool) {
-        self.sessions = sessions
+        let displayedSessions = fixture
+            ? [AgentSession(id: "preview", state: "working", agent: "Codex", title: "GitView (debug preview)")]
+            : sessions
+        self.sessions = displayedSessions
         self.radius = radius
         self.enabled = enabled
         if !enabled || radius <= 4 {
@@ -40,10 +44,10 @@ final class MockCornerMenu {
             return
         }
         if panel != nil {
-            visible.update(sessions, capacity: capacity)
+            visible.update(displayedSessions, capacity: capacity)
             refreshPanel()
         }
-        if sessions.isEmpty && panel == nil {
+        if displayedSessions.isEmpty && panel == nil {
             timer?.invalidate()
             timer = nil
         } else if timer == nil {
@@ -56,7 +60,7 @@ final class MockCornerMenu {
     private func checkPointer() {
         guard enabled, !sessions.isEmpty || panel != nil else { return }
         let pointer: NSPoint
-        if ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_SIMULATE_HOVER"] == "1",
+        if (fixture || ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_SIMULATE_HOVER"] == "1"),
            let screen = NSScreen.main {
             pointer = NSPoint(x: screen.frame.maxX - 1, y: screen.frame.minY + 1)
         } else {

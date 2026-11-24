@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             print("Mock radius: selected \(radius) pt, effective \(effectiveRadius) pt")
             attachDebugSource(path)
         }
+        if ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_FIXTURE"] == "1" { refreshWindows() }
         #endif
     }
 
