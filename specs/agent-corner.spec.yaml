@@ -47,7 +47,7 @@ constraints:
     statement: Меню использует мягко тонированную полупрозрачную поверхность с тонкой кромкой и читаемыми подписями. Яркий блик и объёмный ободок в согласованный облик не входят.
   - id: attention_priority
     level: MUST
-    statement: Пока хотя бы одна сессия ждёт ответа или разрешения пользователя, в маске виден янтарный ромб. Янтарный ромб имеет приоритет над синим общим индикатором. Работа обозначена синим кружком. В каждой строке видны доступные название проекта, имя агента и текст состояния. Отсутствующие данные не подменяются сведениями другой сессии.
+    statement: Пока хотя бы одна сессия ждёт ответа или разрешения пользователя, в маске виден янтарный ромб. Янтарный ромб имеет приоритет над синим общим индикатором. Работа обозначена синим кружком. В каждой строке видны доступное название проекта, значок агента и текст состояния. Значок имеет текстовое имя для доступности. Отсутствующие данные не подменяются сведениями другой сессии.
   - id: chronological_order
     level: MUST
     statement: При открытии меню строки упорядочены по порядку принятия последнего изменения состояния сессии, от более старых сверху к более свежим снизу. Подтверждение актуальности без изменения состояния не переставляет строку. При одинаковом порядке приёма используется стабильная идентичность сессии. Ожидание не меняет этот порядок.
@@ -81,16 +81,20 @@ evidence:
   - id: accepted_visual
     kind: example
     path: Design/agent-corner-24pt.svg
-    supports: [constraints.indicator_on_mask, constraints.concentric_menu, constraints.quiet_material, constraints.attention_priority]
+    supports: [constraints.indicator_on_mask, constraints.concentric_menu, constraints.quiet_material]
   - id: review_scenario
     kind: documentation
     path: Design/agent-corner.md
     supports: [intent.summary, scope, provides.capabilities.displaycorners.agent_corner.presentation_contract, interfaces, constraints, effects]
+  - id: accepted_menu_prototype
+    kind: example
+    path: prototypes/corner-preview/CornerPreview.swift
+    supports: [constraints.concentric_menu, constraints.quiet_material]
 provenance:
   sourceConfidence:
     intent: high
     boundary: high
     behavior: unknown
   notes:
-    - SVG сохраняет утверждённый визуальный образец. Сценарий описывает ожидаемую проверку взаимодействия. Подтверждения работы функции в приложении пока нет.
+    - Пользователь одобрил внешний вид меню в прототипе со значками агентов. Исходный SVG сохраняет образец геометрии; прототип показывает круглый общий индикатор вместо указанного выше ромба. Его форму следует уточнить отдельно. Подтверждения работы функции в приложении пока нет.
 implementationBindings: []
