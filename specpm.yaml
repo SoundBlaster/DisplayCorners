@@ -10,10 +10,12 @@ metadata:
     - name: Egor Merkushev
 specs:
   - path: specs/agent-corner.spec.yaml
+  - path: specs/harness-adapter.spec.yaml
 index:
   provides:
     capabilities:
       - displaycorners.agent_corner.presentation_contract
+      - displaycorners.harness_adapter.protocol_contract
   requires:
     capabilities: []
 compatibility:
