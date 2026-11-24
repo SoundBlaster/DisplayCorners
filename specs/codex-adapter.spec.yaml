@@ -1,0 +1,73 @@
+apiVersion: specpm.dev/v0.1
+kind: BoundarySpec
+metadata:
+  id: displaycorners.codex_hook_adapter
+  title: Наблюдение Codex CLI через hooks
+  version: 0.1.0
+  status: draft
+intent:
+  summary: Передавать подтверждённые события локального Codex в общий список сессий Display Corners.
+scope:
+  boundedContext: displaycorners_codex_hook_adapter
+  includes:
+    - Локальные сессии Codex с явно установленными и доверенными hooks.
+    - Неполный снимок наблюдаемых сессий и последующие обновления.
+  excludes:
+    - Выдача или отклонение разрешений и изменение запросов Codex.
+    - Заявление о покрытии всех поверхностей Codex или уже запущенных сессий.
+    - Переход к сессии до проверки адресации конкретного клиента.
+provides:
+  capabilities:
+    - id: displaycorners.codex_hook_adapter.observation
+      role: primary
+      summary: Наблюдение ограниченного набора локальных событий Codex через общий контракт адаптера.
+requires:
+  capabilities:
+    - id: displaycorners.harness_adapter.protocol_contract
+interfaces:
+  inbound:
+    - id: codex_hook
+      kind: event
+      summary: Codex передаёт hook JSON события, а наблюдатель пересылает только поля, нужные адаптеру.
+  outbound:
+    - id: session_observations
+      kind: event
+      summary: Адаптер сообщает snapshot и update или remove через локальный канал потребителю Display Corners.
+constraints:
+  - id: trust_and_scope
+    level: MUST
+    statement: Hook устанавливается только явно и запускается согласно механизму доверия Codex. Сессии, не передавшие событие этому адаптеру, не считаются обнаруженными; снимок неполный.
+  - id: confirmed_activity
+    level: MUST
+    statement: UserPromptSubmit и SessionStart не подтверждают работу. PostToolUse подтверждает наблюдаемую активность и позволяет временно показать working. PermissionRequest без подтверждения того, что запрос действительно показан пользователю, переводит состояние в unknown, а не в waiting_for_user. События Stop и Interrupt убирают активный ход из текущего списка, но не объявляют сессию завершённой.
+  - id: freshness_and_failure
+    level: MUST
+    statement: По простому таймауту неподтверждённый статус становится unknown. Недоступность адаптера, ошибка обработки или недоставленное событие не меняет разрешения и не блокирует работу Codex.
+  - id: minimal_data
+    level: MUST
+    statement: Наблюдатель передаёт идентификатор сессии, вид события и при наличии имя проекта; текст prompt, данные инструмента и transcript не передаются и не сохраняются. Переход к сессии объявляется неподдерживаемым до отдельного подтверждения.
+  - id: acceptance
+    level: MUST
+    statement: В проверке изолированного Codex с доверенными hooks событие обработки инструмента доходит до адаптера и показывает working; отсутствие подключения не мешает Codex. Синтетический PermissionRequest не выдаётся за подтверждённое ожидание пользователя. Истечение таймаута делает статус unknown.
+effects:
+  sideEffects:
+    - id: local_observation
+      kind: filesystem_write
+      summary: Локальные сокеты создаются только при явном запуске адаптера.
+evidence:
+  - id: hook_research
+    kind: documentation
+    path: specs/harness-hooks-research.md
+    supports: [constraints.confirmed_activity, constraints.minimal_data]
+  - id: codex_adapter_design
+    kind: documentation
+    path: specs/codex-adapter.md
+    supports: [intent.summary, scope, interfaces, constraints, effects]
+provenance:
+  sourceConfidence:
+    intent: high
+    boundary: medium
+    behavior: unknown
+  notes:
+    - Первая интеграция ограничена локальной сессией Codex с установленными hooks. Работа в реальных сессиях и отображение разрешений проверяются отдельно.
+implementationBindings: []

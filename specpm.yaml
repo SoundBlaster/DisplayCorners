@@ -11,11 +11,13 @@ metadata:
 specs:
   - path: specs/agent-corner.spec.yaml
   - path: specs/harness-adapter.spec.yaml
+  - path: specs/codex-adapter.spec.yaml
 index:
   provides:
     capabilities:
       - displaycorners.agent_corner.presentation_contract
       - displaycorners.harness_adapter.protocol_contract
+      - displaycorners.codex_hook_adapter.observation
   requires:
     capabilities: []
 compatibility:
