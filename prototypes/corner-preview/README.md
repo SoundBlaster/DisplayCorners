@@ -21,3 +21,5 @@ The mock is a window representing a display; its lower-right black wedge contain
 - Agent data should come through adapters; this mock has no adapter integration. SessionMonitor is a visual example only, not a dependency.
 
 The real screen overlay, multiple displays, dynamic list updates, interaction with actual sessions, accessibility, and hover reliability in the final app remain to be designed and verified. Quick actions and a Notification Center-style stack are deferred.
+
+The Claude Code and Codex icons are from [Lobe Icons](https://github.com/lobehub/lobe-icons), distributed under the [MIT license](Resources/LOBE-ICONS-LICENSE.txt). Brand marks belong to their respective owners.

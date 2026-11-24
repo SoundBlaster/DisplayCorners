@@ -154,8 +154,16 @@ private struct SessionRow: View {
                     Text(verbatim: project)
                         .fontWeight(.semibold)
                     Spacer(minLength: 8)
-                    Text(verbatim: provider)
-                        .foregroundStyle(.secondary)
+                    if let url = Bundle.main.url(forResource: provider == "Codex" ? "codex" : "claudecode", withExtension: "png"),
+                       let image = NSImage(contentsOf: url) {
+                        Image(nsImage: image)
+                            .renderingMode(.template)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 17, height: 17)
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(Text(verbatim: provider))
+                    }
                 }
                 Text(verbatim: status)
                     .foregroundStyle(.secondary)
