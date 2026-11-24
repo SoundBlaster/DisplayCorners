@@ -54,6 +54,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #if DEBUG
     private var mockClient: MockDebugClient?
     private var mockState: String?
+    private var mockSessions: [MockSession] = []
+    private var mockMenu: AnyObject?
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -73,9 +75,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let path = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"], !path.isEmpty {
             let client = MockDebugClient(path: path)
-            client.onChange = { [weak self] state in
-                self?.mockState = state
-                self?.refreshWindows()
+            if #available(macOS 26, *) { mockMenu = MockCornerMenu() }
+            client.onChange = { [weak self] sessions in
+                guard let self else { return }
+                self.mockSessions = sessions
+                let states = sessions.map(\.state)
+                self.mockState = states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil
+                self.refreshWindows()
             }
             mockClient = client
             client.start()
@@ -98,6 +104,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func screensChanged() { refreshWindows() }
 
     private func refreshWindows() {
+        #if DEBUG
+        if #available(macOS 26, *), let menu = mockMenu as? MockCornerMenu {
+            menu.update(sessions: mockSessions, radius: CGFloat(radius), enabled: enabled && showBottom)
+        }
+        #endif
         windows.forEach { $0.orderOut(nil) }
         windows.removeAll()
         guard enabled else { return }

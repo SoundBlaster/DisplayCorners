@@ -23,7 +23,7 @@ final class MockDebugClient {
     private var sessions: [String: MockSession] = [:]
     private let window: NSWindow
     private let label: NSTextField
-    var onChange: ((String?) -> Void)?
+    var onChange: (([MockSession]) -> Void)?
 
     init(path: String) {
         connection = NWConnection(to: .unix(path: path), using: .tcp)
@@ -88,14 +88,13 @@ final class MockDebugClient {
         let ordered = sessions.values.sorted { $0.session_id < $1.session_id }
         let lines = ordered.map { "\($0.project ?? "—") · \($0.agent ?? "—")\n\($0.session_id): \($0.state)" }
         label.stringValue = (["Connected to Mock Agent"] + (lines.isEmpty ? ["No sessions"] : lines)).joined(separator: "\n\n")
-        let states = ordered.map(\.state)
-        onChange?(states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil)
+        onChange?(ordered)
     }
 
     private func disconnect(_ message: String) {
         sessions.removeAll()
         label.stringValue = message
-        onChange?(nil)
+        onChange?([])
     }
 }
 #endif

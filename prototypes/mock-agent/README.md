@@ -19,4 +19,6 @@ A disposable agent simulator and an opt-in debug-only client in Display Corners.
 
 The debug window shows the received session. On enabled bottom-right masks, working draws a blue dot and waiting draws an orange dot; unknown, an empty snapshot and disconnect clear it. At radii below 12 pt the test dot is omitted. The application uses a separate debug bundle identifier and preferences. Release builds do not contain the debug client or draw the mock indicator.
 
-The actual display-corner hover menu, session navigation, adapter freshness timeouts, reconnect and real agent integrations are not implemented by this prototype. The mock is deliberately interactive and does not infer real agent activity.
+On macOS 26 and later the debug app also opens a glass session panel when the pointer enters the bottom-right 2R × 2R activation area. It shows the mock session and updates its status; it does not open the session. The panel and input detection are debug-only. For an automated geometry check, set `DISPLAY_CORNERS_DEBUG_SIMULATE_HOVER=1` when running the debug app; this simulates the position and does not test a physical mouse. The app prints the panel and screen frames when it opens.
+
+The production hover menu, stable ordering with multiple sessions, session navigation, adapter freshness timeouts, reconnect and real agent integrations are not implemented by this prototype. The mock is deliberately interactive and does not infer real agent activity. Manual verification on a physical display is still needed.
