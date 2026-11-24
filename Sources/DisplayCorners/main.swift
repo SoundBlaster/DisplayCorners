@@ -33,10 +33,9 @@ final class CornerView: NSView {
         context.fillPath()
         context.restoreGState()
         #if DEBUG
-        if corner == .bottomRight, let mockState, r >= 12 {
+        if corner == .bottomRight, let mockState, r >= CornerRadius.minimumForAgent {
             (mockState == "waiting_for_user" ? NSColor.systemOrange : NSColor.systemBlue).setFill()
-            let scale = r / 36
-            NSBezierPath(ovalIn: NSRect(x: r - 7 * scale, y: 2 * scale, width: 5 * scale, height: 5 * scale)).fill()
+            NSBezierPath(ovalIn: NSRect(x: r - 7, y: 2, width: 5, height: 5)).fill()
         }
         #endif
     }
@@ -74,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         refreshWindows()
         #if DEBUG
         if let path = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"], !path.isEmpty {
+            print("Mock radius: selected \(radius) pt, effective \(effectiveRadius) pt")
             let client = MockDebugClient(path: path)
             if #available(macOS 26, *) { mockMenu = MockCornerMenu() }
             client.onChange = { [weak self] sessions in
@@ -103,10 +103,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screensChanged() { refreshWindows() }
 
+    private var effectiveRadius: CGFloat {
+        #if DEBUG
+        let hasHooks = !(ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"] ?? "").isEmpty
+        #else
+        let hasHooks = false
+        #endif
+        return CornerRadius.effective(selected: CGFloat(radius), agentHooksInstalled: hasHooks)
+    }
+
     private func refreshWindows() {
         #if DEBUG
         if #available(macOS 26, *), let menu = mockMenu as? MockCornerMenu {
-            menu.update(sessions: mockSessions, radius: CGFloat(radius), enabled: enabled && showBottom)
+            menu.update(sessions: mockSessions, radius: effectiveRadius, enabled: enabled && showBottom)
         }
         #endif
         windows.forEach { $0.orderOut(nil) }
@@ -114,7 +123,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard enabled else { return }
         for screen in NSScreen.screens {
             for corner in Corner.allCases where corner.isTop ? showTop : showBottom {
-                let frame = corner.frame(on: screen.frame, radius: CGFloat(radius))
+                let frame = corner.frame(on: screen.frame, radius: effectiveRadius)
                 let window = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
                 window.isOpaque = false
                 window.backgroundColor = .clear
@@ -162,9 +171,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var radiusTitle: String {
-        String.localizedStringWithFormat(
+        let title = String.localizedStringWithFormat(
             NSLocalizedString("Radius: %lld pt", comment: "Corner radius in points"), Int64(radius)
         )
+        #if DEBUG
+        if effectiveRadius != CGFloat(radius) {
+            return "\(title) → \(Int(effectiveRadius)) pt"
+        }
+        #endif
+        return title
     }
 
     private func addToggle(to menu: NSMenu, title: String, action: Selector, on: Bool) {

@@ -1,5 +1,13 @@
 import CoreGraphics
 
+public enum CornerRadius {
+    public static let minimumForAgent: CGFloat = 24
+
+    public static func effective(selected: CGFloat, agentHooksInstalled: Bool) -> CGFloat {
+        agentHooksInstalled ? max(selected, minimumForAgent) : selected
+    }
+}
+
 public enum Corner: CaseIterable, Sendable {
     case bottomLeft, bottomRight, topLeft, topRight
 
