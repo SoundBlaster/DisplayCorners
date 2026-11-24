@@ -1,4 +1,5 @@
 import json
+import os
 import socket
 import subprocess
 import sys
@@ -10,6 +11,46 @@ HERE = Path(__file__).parent
 
 
 class CodexAdapterTests(unittest.TestCase):
+    def test_chat_title_arrives_without_forwarding_other_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable = Path(directory) / "codex"
+            executable.write_text('''#!/usr/bin/python3
+import json, sys
+for line in sys.stdin:
+    request = json.loads(line)
+    if request.get("method") == "initialize":
+        print(json.dumps({"id": 1, "result": {}}), flush=True)
+    elif request.get("method") == "thread/read":
+        thread = {"name": "Actual chat title", "preview": "PRIVATE PROMPT"}
+        print(json.dumps({"id": 2, "result": {"thread": thread}}), flush=True)
+''')
+            executable.chmod(0o755)
+            env = {**os.environ, "PATH": directory + os.pathsep + os.environ.get("PATH", "")}
+            process = subprocess.Popen([sys.executable, "-u", str(HERE / "adapter.py")], env=env,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            try:
+                event_socket = process.stdout.readline().strip().removeprefix("EVENT_SOCKET=")
+                adapter_socket = process.stdout.readline().strip().removeprefix("ADAPTER_SOCKET=")
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client, \
+                     socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM) as sender:
+                    client.settimeout(5)
+                    client.connect(adapter_socket)
+                    with client.makefile("rb") as lines:
+                        self.assertEqual(json.loads(lines.readline())["harness"], "Codex")
+                        sender.sendto(json.dumps({"session_id": "s1", "event": "PostToolUse",
+                                                  "project": "Folder"}).encode(), event_socket)
+                        initial = json.loads(lines.readline())
+                        self.assertIsNone(initial["session"]["title"])
+                        updated = json.loads(lines.readline())
+                        self.assertEqual(updated["session"]["title"], "Actual chat title")
+                        self.assertEqual(updated["session"]["project"], "Folder")
+                        self.assertNotIn("PRIVATE PROMPT", json.dumps(updated))
+            finally:
+                process.terminate()
+                process.wait(timeout=5)
+                process.stdout.close()
+                process.stderr.close()
+
     def test_socket_observation_is_minimal_and_expires(self):
         with subprocess.Popen([sys.executable, "-u", str(HERE / "adapter.py"), "--ttl", "0.3"],
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) as process:
@@ -34,7 +75,7 @@ class CodexAdapterTests(unittest.TestCase):
                         base = {"session_id": "s1", "cwd": "/tmp/Project", "prompt": "DO NOT SEND",
                                 "tool_input": {"secret": "DO NOT SEND"}, "transcript_path": "/secret"}
                         working = emit({**base, "hook_event_name": "PostToolUse"})
-                        self.assertEqual(working["session"], {"session_id": "s1", "state": "working", "project": "Project", "agent": "Codex"})
+                        self.assertEqual(working["session"], {"session_id": "s1", "state": "working", "project": "Project", "agent": "Codex", "title": None})
                         self.assertEqual(read()["session"]["state"], "unknown")
                         waiting = emit({**base, "hook_event_name": "PermissionRequest"})
                         self.assertEqual(waiting["session"]["state"], "unknown")

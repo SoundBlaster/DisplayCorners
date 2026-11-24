@@ -11,3 +11,5 @@
 "Hooks are partially installed. Install again or remove them." = "Hooks are partially installed. Install again or remove them.";
 "Hooks are not installed." = "Hooks are not installed.";
 "Could not start Codex adapter. Hooks remain installed." = "Could not start Codex adapter. Hooks remain installed.";
+
+"Untitled session" = "Untitled session";

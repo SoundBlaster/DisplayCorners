@@ -5,13 +5,15 @@ public struct AgentSession: Decodable, Equatable, Identifiable {
     public let state: String
     public let project: String?
     public let agent: String?
+    public let title: String?
     public var id: String { session_id }
 
-    public init(id: String, state: String, project: String? = nil, agent: String? = nil) {
+    public init(id: String, state: String, project: String? = nil, agent: String? = nil, title: String? = nil) {
         self.session_id = id
         self.state = state
         self.project = project
         self.agent = agent
+        self.title = title
     }
 }
 

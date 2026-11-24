@@ -139,7 +139,12 @@ private struct MockSessionList: View {
                             .padding(.top, 5)
                         VStack(alignment: .leading, spacing: 3) {
                             HStack {
-                                Text(verbatim: row.session.project ?? "—").fontWeight(.semibold).lineLimit(1)
+                                if let title = row.session.title {
+                                    Text(verbatim: title).fontWeight(.semibold).lineLimit(1)
+                                } else {
+                                    Text("Untitled session", comment: "Session title unavailable")
+                                        .fontWeight(.semibold).lineLimit(1)
+                                }
                                 Spacer(minLength: 8)
                                 if row.session.agent == "Codex",
                                    let url = Bundle.main.url(forResource: "codex", withExtension: "png"),
@@ -157,7 +162,7 @@ private struct MockSessionList: View {
                                         .accessibilityLabel(Text(verbatim: row.session.agent ?? "Mock Agent"))
                                 }
                             }
-                            Text(verbatim: "\(row.isAvailable ? row.session.state : "unavailable") · \(row.id)")
+                            Text(verbatim: row.isAvailable ? row.session.state : "unavailable")
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }

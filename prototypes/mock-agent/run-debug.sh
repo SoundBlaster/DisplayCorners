@@ -13,7 +13,7 @@ cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
 cp -R "$ROOT/Resources/." "$APP/Contents/Resources/"
 cp "$ROOT/prototypes/corner-preview/Resources/codex.png" "$ROOT/prototypes/corner-preview/Resources/LOBE-ICONS-LICENSE.txt" "$APP/Contents/Resources/"
 mkdir -p "$APP/Contents/Resources/CodexAdapter"
-cp "$ROOT/prototypes/codex-adapter/adapter.py" "$ROOT/prototypes/codex-adapter/hook.py" "$ROOT/prototypes/codex-adapter/install.py" "$ROOT/prototypes/codex-adapter/paths.py" "$APP/Contents/Resources/CodexAdapter/"
+cp "$ROOT/prototypes/codex-adapter/adapter.py" "$ROOT/prototypes/codex-adapter/hook.py" "$ROOT/prototypes/codex-adapter/install.py" "$ROOT/prototypes/codex-adapter/paths.py" "$ROOT/prototypes/codex-adapter/title_lookup.py" "$APP/Contents/Resources/CodexAdapter/"
 cp "$BUILD_ROOT/swiftpm/debug/DisplayCorners" "$APP/Contents/MacOS/DisplayCorners"
 codesign --force --sign - "$APP"
 if [ "$#" -gt 0 ]; then

@@ -52,4 +52,13 @@ final class SessionListTests: XCTestCase {
         visible.open(tracker.ordered)
         XCTAssertEqual(visible.rows.map(\.id), ["A", "B", "C"])
     }
+
+    func testTitleUpdateDoesNotMoveRow() {
+        var tracker = SessionTracker()
+        tracker.update(AgentSession(id: "A", state: "working"))
+        tracker.update(AgentSession(id: "B", state: "working"))
+        tracker.update(AgentSession(id: "A", state: "working", title: "Actual chat"))
+        XCTAssertEqual(tracker.ordered.map(\.id), ["A", "B"])
+        XCTAssertEqual(tracker.ordered.first?.title, "Actual chat")
+    }
 }

@@ -11,3 +11,5 @@
 "Hooks are partially installed. Install again or remove them." = "Hooks установлены частично. Установите их заново или удалите.";
 "Hooks are not installed." = "Hooks не установлены.";
 "Could not start Codex adapter. Hooks remain installed." = "Не удалось запустить адаптер Codex. Hooks остаются установленными.";
+
+"Untitled session" = "Сессия без названия";

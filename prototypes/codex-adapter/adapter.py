@@ -2,6 +2,7 @@
 """Small opt-in Codex hook adapter for the existing debug client."""
 import argparse
 import contextlib
+import concurrent.futures
 import json
 import os
 import selectors
@@ -13,6 +14,7 @@ import tempfile
 import time
 from pathlib import Path
 from paths import socket_directory as short_socket_directory
+from title_lookup import read_title
 
 
 class Adapter:
@@ -35,7 +37,7 @@ class Adapter:
         if not isinstance(project, str) or not project:
             project = previous.get("session", {}).get("project")
         session = {"session_id": session_id, "state": "working" if kind == "PostToolUse" else "unknown",
-                   "project": project, "agent": "Codex"}
+                   "project": project, "agent": "Codex", "title": previous.get("session", {}).get("title")}
         self.sessions[session_id] = {"session": session, "until": time.monotonic() + self.ttl}
         return {"type": "update", "session": session}
 
@@ -113,6 +115,10 @@ def main():
             selector.register(events, selectors.EVENT_READ, "events")
             selector.register(server, selectors.EVENT_READ, "server")
             clients = {}
+            title_cache = {}
+            title_futures = {}
+            title_next_lookup = {}
+            executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
             print(f"EVENT_SOCKET={event_path}\nADAPTER_SOCKET={client_path}", flush=True)
 
             def drop(client):
@@ -145,6 +151,13 @@ def main():
                             event = json.loads(events.recv(65536))
                             message = adapter.accept(event) if isinstance(event, dict) else None
                             if message:
+                                session_id = message.get("session_id") or message.get("session", {}).get("session_id")
+                                if message["type"] == "update":
+                                    if session_id in title_cache:
+                                        message["session"]["title"] = title_cache[session_id]
+                                    if session_id not in title_futures and time.monotonic() >= title_next_lookup.get(session_id, 0):
+                                        title_next_lookup[session_id] = time.monotonic() + 60
+                                        title_futures[session_id] = executor.submit(read_title, session_id)
                                 broadcast(message)
                         except (ValueError, TypeError):
                             pass
@@ -169,6 +182,20 @@ def main():
                             except (OSError, ValueError, AttributeError):
                                 drop(client)
                                 break
+                for session_id, future in list(title_futures.items()):
+                    if not future.done():
+                        continue
+                    del title_futures[session_id]
+                    try:
+                        title = future.result()
+                    except Exception:
+                        title = None
+                    if title:
+                        title_cache[session_id] = title
+                        entry = adapter.sessions.get(session_id)
+                        if entry and entry["session"].get("title") != title:
+                            entry["session"]["title"] = title
+                            broadcast({"type": "update", "session": entry["session"]})
                 for message in adapter.expire():
                     broadcast(message)
 
