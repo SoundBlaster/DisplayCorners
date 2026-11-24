@@ -9,24 +9,23 @@ public enum CornerRadius {
 }
 
 public enum AgentMenuGeometry {
-    public static let edgeInset: CGFloat = 4
-    public static let otherCornerLimit: CGFloat = 20
+    public static let minimumInset: CGFloat = 4
+    public static let maximumMenuRadius: CGFloat = 20
 
     public static func maskRadius(_ radius: CGFloat, on screen: CGRect) -> CGFloat {
         max(0, min(radius, screen.width / 2, screen.height / 2))
     }
 
     public static func menuRadius(maskRadius: CGFloat) -> CGFloat {
-        max(0, maskRadius - edgeInset)
+        min(maximumMenuRadius, max(0, maskRadius - minimumInset))
     }
 
-    public static func otherRadius(maskRadius: CGFloat) -> CGFloat {
-        min(otherCornerLimit, menuRadius(maskRadius: maskRadius))
+    public static func edgeInset(maskRadius: CGFloat) -> CGFloat {
+        maskRadius - menuRadius(maskRadius: maskRadius)
     }
 
     public static func height(rowCount: Int, rowHeight: CGFloat, maskRadius: CGFloat) -> CGFloat {
-        max(CGFloat(rowCount) * rowHeight,
-            menuRadius(maskRadius: maskRadius) + otherRadius(maskRadius: maskRadius))
+        max(CGFloat(rowCount) * rowHeight, 2 * menuRadius(maskRadius: maskRadius))
     }
 }
 

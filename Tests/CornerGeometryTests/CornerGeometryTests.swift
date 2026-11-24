@@ -6,19 +6,24 @@ final class CornerGeometryTests: XCTestCase {
     func testMenuCornerStaysConcentricForOneRow() {
         for radius: CGFloat in [24, 38, 80, 120] {
             let menuRadius = AgentMenuGeometry.menuRadius(maskRadius: radius)
-            let otherRadius = AgentMenuGeometry.otherRadius(maskRadius: radius)
             let height = AgentMenuGeometry.height(rowCount: 1, rowHeight: 57, maskRadius: radius)
-            XCTAssertEqual(menuRadius + AgentMenuGeometry.edgeInset, radius)
-            XCTAssertGreaterThanOrEqual(height, menuRadius + otherRadius)
+            let inset = AgentMenuGeometry.edgeInset(maskRadius: radius)
+            XCTAssertEqual(menuRadius + inset, radius)
+            XCTAssertLessThanOrEqual(menuRadius, 20)
+            XCTAssertGreaterThanOrEqual(inset, 4)
+            XCTAssertGreaterThanOrEqual(height, 2 * menuRadius)
+            XCTAssertEqual(AgentMenuGeometry.height(rowCount: 2, rowHeight: 57, maskRadius: radius) - height, 57)
         }
         XCTAssertEqual(AgentMenuGeometry.height(rowCount: 1, rowHeight: 57, maskRadius: 38), 57)
         XCTAssertEqual(AgentMenuGeometry.height(rowCount: 2, rowHeight: 57, maskRadius: 38), 114)
+        XCTAssertEqual(AgentMenuGeometry.edgeInset(maskRadius: 38), 18)
     }
 
     func testMenuUsesMaskRadiusClampedToScreen() {
         let screen = CGRect(x: 0, y: 0, width: 100, height: 80)
         XCTAssertEqual(AgentMenuGeometry.maskRadius(120, on: screen), 40)
-        XCTAssertEqual(AgentMenuGeometry.menuRadius(maskRadius: 40), 36)
+        XCTAssertEqual(AgentMenuGeometry.menuRadius(maskRadius: 40), 20)
+        XCTAssertEqual(AgentMenuGeometry.edgeInset(maskRadius: 40), 20)
     }
 
     func testFramesUseDisplayCoordinatesIncludingNegativeOrigins() {

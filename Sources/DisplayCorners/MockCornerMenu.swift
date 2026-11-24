@@ -28,7 +28,11 @@ final class MockCornerMenu {
     private var enabled = false
     private let fixture = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_FIXTURE"] == "1"
 
-    private var capacity: Int { max(1, Int((screenFrame.height - 8) / rowHeight)) }
+    private var capacity: Int {
+        let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
+        let inset = AgentMenuGeometry.edgeInset(maskRadius: actualRadius)
+        return max(1, Int((screenFrame.height - inset - 4) / rowHeight))
+    }
 
     func update(sessions: [AgentSession], radius: CGFloat, enabled: Bool) {
         let displayedSessions = fixture
@@ -87,9 +91,10 @@ final class MockCornerMenu {
         screenFrame = screen.frame
         visible.open(sessions)
         let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
+        let inset = AgentMenuGeometry.edgeInset(maskRadius: actualRadius)
         let height = AgentMenuGeometry.height(rowCount: min(visible.rows.count, capacity),
                                               rowHeight: rowHeight, maskRadius: actualRadius)
-        let frame = NSRect(x: screen.frame.maxX - 306 - 4, y: screen.frame.minY + 4,
+        let frame = NSRect(x: screen.frame.maxX - 306 - inset, y: screen.frame.minY + inset,
                            width: 306, height: height)
         let window = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         window.title = "Mock Agent — Sessions"
@@ -109,9 +114,12 @@ final class MockCornerMenu {
     private func refreshPanel() {
         guard let panel else { return }
         let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
+        let inset = AgentMenuGeometry.edgeInset(maskRadius: actualRadius)
         let height = AgentMenuGeometry.height(rowCount: min(visible.rows.count, capacity),
                                               rowHeight: rowHeight, maskRadius: actualRadius)
         var frame = panel.frame
+        frame.origin.x = screenFrame.maxX - frame.width - inset
+        frame.origin.y = screenFrame.minY + inset
         frame.size.height = height
         panel.setFrame(frame, display: true)
         model.rows = visible.rows
@@ -186,11 +194,8 @@ private struct MockSessionList: View {
             .frame(minHeight: model.height, alignment: .bottom)
         }
         .frame(width: 306, height: model.height)
-        .glassEffect(.regular, in: UnevenRoundedRectangle(
-            topLeadingRadius: AgentMenuGeometry.otherRadius(maskRadius: model.radius),
-            bottomLeadingRadius: AgentMenuGeometry.otherRadius(maskRadius: model.radius),
-            bottomTrailingRadius: AgentMenuGeometry.menuRadius(maskRadius: model.radius),
-            topTrailingRadius: AgentMenuGeometry.otherRadius(maskRadius: model.radius), style: .circular))
+        .glassEffect(.regular, in: RoundedRectangle(
+            cornerRadius: AgentMenuGeometry.menuRadius(maskRadius: model.radius), style: .circular))
     }
 }
 #endif
