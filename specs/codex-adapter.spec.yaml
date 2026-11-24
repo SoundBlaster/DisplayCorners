@@ -44,6 +44,9 @@ constraints:
   - id: confirmed_activity
     level: MUST
     statement: UserPromptSubmit и SessionStart не подтверждают работу. PostToolUse подтверждает наблюдаемую активность и позволяет временно показать working. PermissionRequest без подтверждения того, что запрос действительно показан пользователю, переводит состояние в unknown, а не в waiting_for_user. События Stop и Interrupt убирают активный ход из текущего списка, но не объявляют сессию завершённой.
+  - id: root_session_only
+    level: MUST
+    statement: События с указанным agent_id относятся к subagent и не обновляют состояние родительской сессии. Первая версия наблюдает только корневые сессии Codex.
   - id: freshness_and_failure
     level: MUST
     statement: По простому таймауту неподтверждённый статус становится unknown. Недоступность адаптера, ошибка обработки или недоставленное событие не меняет разрешения и не блокирует работу Codex.
