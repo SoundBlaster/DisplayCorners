@@ -13,8 +13,11 @@ def send(connection, message):
 
 
 def main():
-    state = "working"
-    session = {"session_id": "mock-1", "state": state, "project": "DisplayCorners", "agent": "Mock Agent"}
+    def make_session(session_id, state):
+        return {"session_id": session_id, "state": state, "project": "DisplayCorners", "agent": "Mock Agent"}
+
+    sessions = {"mock-1": make_session("mock-1", "working"),
+                "mock-2": make_session("mock-2", "waiting_for_user")}
     with tempfile.TemporaryDirectory(prefix="displaycorners-mock-") as directory:
         path = str(Path(directory) / "agent.sock")
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server, selectors.DefaultSelector() as selector:
@@ -25,7 +28,7 @@ def main():
             client = None
             pending = b""
             print(f"SOCKET={path}", flush=True)
-            print("Commands: working, waiting, unknown, remove, quit", flush=True)
+            print("Commands: working|waiting|unknown [id], add <id>, remove [id], reopen, quit", flush=True)
             while True:
                 for key, _ in selector.select():
                     if key.data == "server":
@@ -38,23 +41,37 @@ def main():
                         send(client, {"type": "source", "source_id": "mock-agent", "harness": "Mock Agent", "can_open_session": False})
                         print("Connected", flush=True)
                     elif key.data == "stdin":
-                        command = sys.stdin.readline().strip()
-                        if command in ("quit", ""):
+                        parts = sys.stdin.readline().strip().split()
+                        if not parts or parts[0] == "quit":
                             return
-                        if command in ("working", "waiting", "unknown"):
-                            if session is None:
-                                session = {"session_id": "mock-1", "project": "DisplayCorners", "agent": "Mock Agent"}
-                            session["state"] = "waiting_for_user" if command == "waiting" else command
+                        command = parts[0]
+                        session_id = parts[1] if len(parts) > 1 else "mock-1"
+                        if command == "reopen":
+                            if client:
+                                send(client, {"type": "debug_reopen"})
+                            print("Reopen requested", flush=True)
+                        elif command in ("working", "waiting", "unknown", "add"):
+                            if command == "add" and session_id in sessions:
+                                print(f"Already exists: {session_id}", flush=True)
+                                continue
+                            if command != "add" and session_id not in sessions:
+                                print(f"No session: {session_id}", flush=True)
+                                continue
+                            state = "waiting_for_user" if command == "waiting" else "working" if command == "add" else command
+                            previous = sessions.get(session_id)
+                            if previous is not None and previous["state"] != state:
+                                sessions.pop(session_id)
+                            session = make_session(session_id, state)
+                            sessions[session_id] = session
                             if client:
                                 send(client, {"type": "update", "session": session})
-                            print(f"State: {session['state']}", flush=True)
+                            print(f"{session_id}: {state}", flush=True)
                         elif command == "remove":
-                            session = None
-                            if client:
-                                send(client, {"type": "remove", "session_id": "mock-1"})
-                            print("Session removed; set a state to restore it", flush=True)
+                            if sessions.pop(session_id, None) is not None and client:
+                                send(client, {"type": "remove", "session_id": session_id})
+                            print(f"Removed: {session_id}", flush=True)
                         else:
-                            print("Use working, waiting, unknown, remove, or quit", flush=True)
+                            print("Use working, waiting, unknown, add, remove, reopen, or quit", flush=True)
                     else:
                         chunk = client.recv(4096)
                         if not chunk:
@@ -72,7 +89,7 @@ def main():
                             except (ValueError, UnicodeDecodeError):
                                 continue
                             if message.get("type") == "snapshot_request":
-                                send(client, {"type": "snapshot", "complete": True, "sessions": [session] if session else []})
+                                send(client, {"type": "snapshot", "complete": True, "sessions": list(sessions.values())})
                                 print("Snapshot sent", flush=True)
 
 

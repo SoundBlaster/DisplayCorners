@@ -7,7 +7,9 @@ let package = Package(
     products: [.executable(name: "DisplayCorners", targets: ["DisplayCorners"])],
     targets: [
         .target(name: "CornerGeometry"),
-        .executableTarget(name: "DisplayCorners", dependencies: ["CornerGeometry"]),
+        .target(name: "SessionList"),
+        .executableTarget(name: "DisplayCorners", dependencies: ["CornerGeometry", "SessionList"]),
         .testTarget(name: "CornerGeometryTests", dependencies: ["CornerGeometry"]),
+        .testTarget(name: "SessionListTests", dependencies: ["SessionList"]),
     ]
 )

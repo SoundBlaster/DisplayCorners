@@ -1,5 +1,8 @@
 import AppKit
 import CornerGeometry
+#if DEBUG
+import SessionList
+#endif
 
 @MainActor
 final class CornerView: NSView {
@@ -53,7 +56,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     #if DEBUG
     private var mockClient: MockDebugClient?
     private var mockState: String?
-    private var mockSessions: [MockSession] = []
+    private var mockSessions: [AgentSession] = []
     private var mockMenu: AnyObject?
     #endif
 
@@ -82,6 +85,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let states = sessions.map(\.state)
                 self.mockState = states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil
                 self.refreshWindows()
+            }
+            client.onReopen = { [weak self] in
+                if #available(macOS 26, *), let menu = self?.mockMenu as? MockCornerMenu {
+                    menu.reopenForDebug()
+                }
             }
             mockClient = client
             client.start()

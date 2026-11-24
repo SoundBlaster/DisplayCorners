@@ -1,18 +1,12 @@
 #if DEBUG
 import AppKit
 import Network
-
-struct MockSession: Decodable {
-    let session_id: String
-    let state: String
-    let project: String?
-    let agent: String?
-}
+import SessionList
 
 private struct MockMessage: Decodable {
     let type: String
-    let sessions: [MockSession]?
-    let session: MockSession?
+    let sessions: [AgentSession]?
+    let session: AgentSession?
     let session_id: String?
 }
 
@@ -20,19 +14,20 @@ private struct MockMessage: Decodable {
 final class MockDebugClient {
     private let connection: NWConnection
     private var buffer = Data()
-    private var sessions: [String: MockSession] = [:]
+    private var sessions = SessionTracker()
     private let window: NSWindow
     private let label: NSTextField
-    var onChange: (([MockSession]) -> Void)?
+    var onChange: (([AgentSession]) -> Void)?
+    var onReopen: (() -> Void)?
 
     init(path: String) {
         connection = NWConnection(to: .unix(path: path), using: .tcp)
-        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 160),
+        window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 280),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
         label = NSTextField(wrappingLabelWithString: "Connecting to mock agent…")
         window.title = "Mock Agent — Debug"
         window.isReleasedWhenClosed = false
-        label.frame = NSRect(x: 20, y: 25, width: 360, height: 110)
+        label.frame = NSRect(x: 20, y: 25, width: 360, height: 230)
         label.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         window.contentView?.addSubview(label)
         window.center()
@@ -75,9 +70,10 @@ final class MockDebugClient {
             buffer.removeSubrange(...newline)
             guard let message = try? JSONDecoder().decode(MockMessage.self, from: line) else { continue }
             switch message.type {
-            case "snapshot": sessions = Dictionary(uniqueKeysWithValues: (message.sessions ?? []).map { ($0.session_id, $0) })
-            case "update": if let session = message.session { sessions[session.session_id] = session }
-            case "remove": if let id = message.session_id { sessions.removeValue(forKey: id) }
+            case "snapshot": sessions.replace(with: message.sessions ?? [])
+            case "update": if let session = message.session { sessions.update(session) }
+            case "remove": if let id = message.session_id { sessions.remove(id: id) }
+            case "debug_reopen": onReopen?(); continue
             default: continue
             }
             render()
@@ -85,14 +81,14 @@ final class MockDebugClient {
     }
 
     private func render() {
-        let ordered = sessions.values.sorted { $0.session_id < $1.session_id }
+        let ordered = sessions.ordered
         let lines = ordered.map { "\($0.project ?? "—") · \($0.agent ?? "—")\n\($0.session_id): \($0.state)" }
         label.stringValue = (["Connected to Mock Agent"] + (lines.isEmpty ? ["No sessions"] : lines)).joined(separator: "\n\n")
         onChange?(ordered)
     }
 
     private func disconnect(_ message: String) {
-        sessions.removeAll()
+        sessions.replace(with: [])
         label.stringValue = message
         onChange?([])
     }
