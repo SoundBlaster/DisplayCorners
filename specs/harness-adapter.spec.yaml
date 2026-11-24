@@ -53,6 +53,10 @@ effects:
       kind: event_emit
       summary: Запрос адаптеру перехода в выбранную сессию.
 evidence:
+  - id: protocol_draft
+    kind: documentation
+    path: specs/harness-adapter-protocol.md
+    supports: [interfaces, constraints]
   - id: protocol
     kind: documentation
     path: specs/harness-adapter.md
