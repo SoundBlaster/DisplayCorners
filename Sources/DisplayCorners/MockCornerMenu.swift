@@ -1,5 +1,6 @@
 #if DEBUG
 import AppKit
+import CornerGeometry
 import Observation
 import SessionList
 import SwiftUI
@@ -66,8 +67,9 @@ final class MockCornerMenu {
             return
         }
         if let screen = NSScreen.screens.first(where: { screen in
-            NSRect(x: screen.frame.maxX - 2 * radius, y: screen.frame.minY,
-                   width: 2 * radius, height: 2 * radius).contains(pointer)
+            let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screen.frame)
+            return NSRect(x: screen.frame.maxX - 2 * actualRadius, y: screen.frame.minY,
+                          width: 2 * actualRadius, height: 2 * actualRadius).contains(pointer)
         }) {
             lastInside = Date()
             if panel == nil && !sessions.isEmpty { show(on: screen) }
@@ -80,7 +82,9 @@ final class MockCornerMenu {
     private func show(on screen: NSScreen) {
         screenFrame = screen.frame
         visible.open(sessions)
-        let height = CGFloat(min(visible.rows.count, capacity)) * rowHeight
+        let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
+        let height = AgentMenuGeometry.height(rowCount: min(visible.rows.count, capacity),
+                                              rowHeight: rowHeight, maskRadius: actualRadius)
         let frame = NSRect(x: screen.frame.maxX - 306 - 4, y: screen.frame.minY + 4,
                            width: 306, height: height)
         let window = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
@@ -100,12 +104,14 @@ final class MockCornerMenu {
 
     private func refreshPanel() {
         guard let panel else { return }
-        let height = CGFloat(min(visible.rows.count, capacity)) * rowHeight
+        let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
+        let height = AgentMenuGeometry.height(rowCount: min(visible.rows.count, capacity),
+                                              rowHeight: rowHeight, maskRadius: actualRadius)
         var frame = panel.frame
         frame.size.height = height
         panel.setFrame(frame, display: true)
         model.rows = visible.rows
-        model.radius = radius
+        model.radius = actualRadius
         model.height = height
         print("Mock menu rows: \(visible.rows.map { "\($0.id):\($0.isAvailable ? $0.session.state : "unavailable")" }), frame: \(frame)")
     }
@@ -173,11 +179,14 @@ private struct MockSessionList: View {
                     .padding(.horizontal, 16)
                 }
             }
+            .frame(minHeight: model.height, alignment: .bottom)
         }
         .frame(width: 306, height: model.height)
         .glassEffect(.regular, in: UnevenRoundedRectangle(
-            topLeadingRadius: max(0, model.radius - 4), bottomLeadingRadius: max(0, model.radius - 4),
-            bottomTrailingRadius: max(0, model.radius - 4), topTrailingRadius: max(0, model.radius - 4)))
+            topLeadingRadius: AgentMenuGeometry.otherRadius(maskRadius: model.radius),
+            bottomLeadingRadius: AgentMenuGeometry.otherRadius(maskRadius: model.radius),
+            bottomTrailingRadius: AgentMenuGeometry.menuRadius(maskRadius: model.radius),
+            topTrailingRadius: AgentMenuGeometry.otherRadius(maskRadius: model.radius), style: .circular))
     }
 }
 #endif

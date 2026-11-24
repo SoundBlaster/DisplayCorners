@@ -3,6 +3,24 @@ import XCTest
 @testable import CornerGeometry
 
 final class CornerGeometryTests: XCTestCase {
+    func testMenuCornerStaysConcentricForOneRow() {
+        for radius: CGFloat in [24, 38, 80, 120] {
+            let menuRadius = AgentMenuGeometry.menuRadius(maskRadius: radius)
+            let otherRadius = AgentMenuGeometry.otherRadius(maskRadius: radius)
+            let height = AgentMenuGeometry.height(rowCount: 1, rowHeight: 57, maskRadius: radius)
+            XCTAssertEqual(menuRadius + AgentMenuGeometry.edgeInset, radius)
+            XCTAssertGreaterThanOrEqual(height, menuRadius + otherRadius)
+        }
+        XCTAssertEqual(AgentMenuGeometry.height(rowCount: 1, rowHeight: 57, maskRadius: 38), 57)
+        XCTAssertEqual(AgentMenuGeometry.height(rowCount: 2, rowHeight: 57, maskRadius: 38), 114)
+    }
+
+    func testMenuUsesMaskRadiusClampedToScreen() {
+        let screen = CGRect(x: 0, y: 0, width: 100, height: 80)
+        XCTAssertEqual(AgentMenuGeometry.maskRadius(120, on: screen), 40)
+        XCTAssertEqual(AgentMenuGeometry.menuRadius(maskRadius: 40), 36)
+    }
+
     func testFramesUseDisplayCoordinatesIncludingNegativeOrigins() {
         let screen = CGRect(x: -1920, y: 200, width: 1920, height: 1080)
         XCTAssertEqual(Corner.bottomLeft.frame(on: screen, radius: 40), CGRect(x: -1920, y: 200, width: 40, height: 40))
