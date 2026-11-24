@@ -141,9 +141,21 @@ private struct MockSessionList: View {
                             HStack {
                                 Text(verbatim: row.session.project ?? "—").fontWeight(.semibold).lineLimit(1)
                                 Spacer(minLength: 8)
-                                Image(systemName: "terminal")
-                                    .foregroundStyle(.secondary)
-                                    .accessibilityLabel(Text(verbatim: row.session.agent ?? "Mock Agent"))
+                                if row.session.agent == "Codex",
+                                   let url = Bundle.main.url(forResource: "codex", withExtension: "png"),
+                                   let icon = NSImage(contentsOf: url) {
+                                    Image(nsImage: icon)
+                                        .renderingMode(.template)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 17, height: 17)
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityLabel("Codex")
+                                } else {
+                                    Image(systemName: "terminal")
+                                        .foregroundStyle(.secondary)
+                                        .accessibilityLabel(Text(verbatim: row.session.agent ?? "Mock Agent"))
+                                }
                             }
                             Text(verbatim: "\(row.isAvailable ? row.session.state : "unavailable") · \(row.id)")
                                 .foregroundStyle(.secondary)

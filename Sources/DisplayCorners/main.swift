@@ -58,6 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var mockState: String?
     private var mockSessions: [AgentSession] = []
     private var mockMenu: AnyObject?
+    private var codexSettings: CodexSettings?
+    private var codexHooksInstalled = false
+    private var codexProcess: Process?
+    private var codexOutput: Pipe?
+    private var codexOutputBuffer = Data()
+    private var codexGeneration = UUID()
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -75,27 +81,116 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rebuildMenu()
         refreshWindows()
         #if DEBUG
+        if #available(macOS 26, *) { mockMenu = MockCornerMenu() }
+        if let resources = Bundle.main.resourceURL, let settings = CodexSettings(resources: resources) {
+            codexSettings = settings
+            settings.onInstallationChange = { [weak self] installed in
+                self?.setCodexInstalled(installed)
+            }
+            settings.refresh()
+            if ProcessInfo.processInfo.environment["DISPLAY_CORNERS_OPEN_SETTINGS"] == "1" { settings.show() }
+        }
         if let path = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"], !path.isEmpty {
             print("Mock radius: selected \(radius) pt, effective \(effectiveRadius) pt")
-            let client = MockDebugClient(path: path)
-            if #available(macOS 26, *) { mockMenu = MockCornerMenu() }
-            client.onChange = { [weak self] sessions in
-                guard let self else { return }
-                self.mockSessions = sessions
-                let states = sessions.map(\.state)
-                self.mockState = states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil
-                self.refreshWindows()
-            }
-            client.onReopen = { [weak self] in
-                if #available(macOS 26, *), let menu = self?.mockMenu as? MockCornerMenu {
-                    menu.reopenForDebug()
-                }
-            }
-            mockClient = client
-            client.start()
+            attachDebugSource(path)
         }
         #endif
     }
+
+    #if DEBUG
+    private func attachDebugSource(_ path: String) {
+        mockClient?.stop()
+        let client = MockDebugClient(path: path)
+        client.onChange = { [weak self] sessions in
+            guard let self else { return }
+            self.mockSessions = sessions
+            let states = sessions.map(\.state)
+            self.mockState = states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil
+            self.refreshWindows()
+        }
+        client.onReopen = { [weak self] in
+            if #available(macOS 26, *), let menu = self?.mockMenu as? MockCornerMenu {
+                menu.reopenForDebug()
+            }
+        }
+        mockClient = client
+        client.start()
+    }
+
+    private func setCodexInstalled(_ installed: Bool) {
+        guard codexHooksInstalled != installed else { return }
+        codexHooksInstalled = installed
+        refreshWindows()
+        guard (ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"] ?? "").isEmpty else { return }
+        if installed { startCodexAdapter() } else { stopCodexAdapter() }
+    }
+
+    private func startCodexAdapter() {
+        guard codexProcess == nil, let settings = codexSettings, let resources = Bundle.main.resourceURL else { return }
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/python3")
+        process.arguments = [resources.appendingPathComponent("CodexAdapter/adapter.py").path,
+                             "--directory", settings.dataDirectory.path]
+        let output = Pipe()
+        process.standardOutput = output
+        let generation = UUID()
+        codexGeneration = generation
+        codexOutputBuffer.removeAll()
+        process.terminationHandler = { [weak self] process in
+            _ = process.terminationStatus
+            Task { @MainActor [weak self] in
+                guard let self, generation == self.codexGeneration else { return }
+                self.stopCodexAdapter()
+                self.codexSettings?.showRuntimeError(NSLocalizedString("Could not start Codex adapter. Hooks remain installed.", comment: "Codex adapter startup failed"))
+            }
+        }
+        output.fileHandleForReading.readabilityHandler = { [weak self] handle in
+            let data = handle.availableData
+            Task { @MainActor [weak self] in self?.consumeCodexOutput(data, generation: generation) }
+        }
+        do {
+            try process.run()
+            codexProcess = process
+            codexOutput = output
+        } catch {
+            output.fileHandleForReading.readabilityHandler = nil
+            settings.showRuntimeError(error.localizedDescription)
+        }
+    }
+
+    private func consumeCodexOutput(_ data: Data, generation: UUID) {
+        guard generation == codexGeneration, !data.isEmpty else { return }
+        codexOutputBuffer.append(data)
+        while let newline = codexOutputBuffer.firstIndex(of: 10) {
+            let line = String(decoding: codexOutputBuffer[..<newline], as: UTF8.self)
+            codexOutputBuffer.removeSubrange(...newline)
+            if line.hasPrefix("ADAPTER_SOCKET=") {
+                codexSettings?.clearRuntimeError()
+                attachDebugSource(String(line.dropFirst("ADAPTER_SOCKET=".count)))
+            }
+        }
+    }
+
+    private func stopCodexAdapter() {
+        codexGeneration = UUID()
+        codexOutput?.fileHandleForReading.readabilityHandler = nil
+        codexOutput = nil
+        if let process = codexProcess, process.isRunning { process.terminate() }
+        codexProcess = nil
+        mockClient?.stop()
+        mockClient = nil
+        mockSessions = []
+        mockState = nil
+        if #available(macOS 26, *), let menu = mockMenu as? MockCornerMenu {
+            menu.update(sessions: [], radius: effectiveRadius, enabled: false)
+        }
+        refreshWindows()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) { stopCodexAdapter() }
+
+    @objc private func openAgentSettings() { codexSettings?.show() }
+    #endif
 
     private func migrateSettings() {
         let current = defaults.persistentDomain(forName: "ru.egormerkushev.displaycorners") ?? [:]
@@ -113,7 +208,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var effectiveRadius: CGFloat {
         #if DEBUG
-        let hasHooks = !(ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"] ?? "").isEmpty
+        let hasHooks = codexHooksInstalled || !(ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"] ?? "").isEmpty
         #else
         let hasHooks = false
         #endif
@@ -172,6 +267,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         container.addSubview(slider)
         sliderItem.view = container
         menu.addItem(sliderItem)
+        #if DEBUG
+        let agentSettings = NSMenuItem(title: NSLocalizedString("Agent Settings…", comment: "Open agent settings"), action: #selector(openAgentSettings), keyEquivalent: "")
+        agentSettings.target = self
+        menu.addItem(agentSettings)
+        #endif
         menu.addItem(.separator())
         let quit = NSMenuItem(title: NSLocalizedString("Quit Display Corners", comment: "Quit the application"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)

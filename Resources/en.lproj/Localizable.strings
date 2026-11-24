@@ -3,3 +3,11 @@
 "Bottom corners" = "Bottom corners";
 "Radius: %lld pt" = "Radius: %lld pt";
 "Quit Display Corners" = "Quit Display Corners";
+"Agent Settings" = "Agent Settings";
+"Agent Settings…" = "Agent Settings…";
+"Install Hooks" = "Install Hooks";
+"Remove Hooks" = "Remove Hooks";
+"Hooks installed. Review and trust them in Codex. Trust status is not known here." = "Hooks installed. Review and trust them in Codex. Trust status is not known here.";
+"Hooks are partially installed. Install again or remove them." = "Hooks are partially installed. Install again or remove them.";
+"Hooks are not installed." = "Hooks are not installed.";
+"Could not start Codex adapter. Hooks remain installed." = "Could not start Codex adapter. Hooks remain installed.";
