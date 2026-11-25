@@ -14,7 +14,8 @@ def send(connection, message):
 
 def main():
     def make_session(session_id, state):
-        return {"session_id": session_id, "state": state, "project": "DisplayCorners", "agent": "Mock Agent"}
+        return {"session_id": session_id, "state": state, "project": "DisplayCorners",
+                "agent": "Mock Agent", "title": f"Mock session {session_id}"}
 
     sessions = {"mock-1": make_session("mock-1", "working"),
                 "mock-2": make_session("mock-2", "waiting_for_user")}

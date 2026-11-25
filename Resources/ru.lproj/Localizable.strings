@@ -3,3 +3,13 @@
 "Bottom corners" = "Нижние углы";
 "Radius: %lld pt" = "Радиус: %lld pt";
 "Quit Display Corners" = "Завершить Display Corners";
+"Agent Settings" = "Настройки агентов";
+"Agent Settings…" = "Настройки агентов…";
+"Install Hooks" = "Установить hooks";
+"Remove Hooks" = "Удалить hooks";
+"Hooks installed. Review and trust them in Codex. Trust status is not known here." = "Hooks установлены. Проверьте и подтвердите доверие к ним в Codex. Статус доверия здесь неизвестен.";
+"Hooks are partially installed. Install again or remove them." = "Hooks установлены частично. Установите их заново или удалите.";
+"Hooks are not installed." = "Hooks не установлены.";
+"Could not start Codex adapter. Hooks remain installed." = "Не удалось запустить адаптер Codex. Hooks остаются установленными.";
+
+"Untitled session" = "Сессия без названия";

@@ -8,6 +8,7 @@ private struct MockMessage: Decodable {
     let sessions: [AgentSession]?
     let session: AgentSession?
     let session_id: String?
+    let harness: String?
 }
 
 @MainActor
@@ -15,6 +16,7 @@ final class MockDebugClient {
     private let connection: NWConnection
     private var buffer = Data()
     private var sessions = SessionTracker()
+    private var sourceName = "Agent"
     private let window: NSWindow
     private let label: NSTextField
     var onChange: (([AgentSession]) -> Void)?
@@ -24,8 +26,8 @@ final class MockDebugClient {
         connection = NWConnection(to: .unix(path: path), using: .tcp)
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 280),
                           styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
-        label = NSTextField(wrappingLabelWithString: "Connecting to mock agent…")
-        window.title = "Mock Agent — Debug"
+        label = NSTextField(wrappingLabelWithString: "Connecting to agent…")
+        window.title = "Agent — Debug"
         window.isReleasedWhenClosed = false
         label.frame = NSRect(x: 20, y: 25, width: 360, height: 230)
         label.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
@@ -70,6 +72,10 @@ final class MockDebugClient {
             buffer.removeSubrange(...newline)
             guard let message = try? JSONDecoder().decode(MockMessage.self, from: line) else { continue }
             switch message.type {
+            case "source":
+                sourceName = message.harness ?? "Agent"
+                window.title = "\(sourceName) — Debug"
+                continue
             case "snapshot": sessions.replace(with: message.sessions ?? [])
             case "update": if let session = message.session { sessions.update(session) }
             case "remove": if let id = message.session_id { sessions.remove(id: id) }
@@ -83,7 +89,7 @@ final class MockDebugClient {
     private func render() {
         let ordered = sessions.ordered
         let lines = ordered.map { "\($0.project ?? "—") · \($0.agent ?? "—")\n\($0.session_id): \($0.state)" }
-        label.stringValue = (["Connected to Mock Agent"] + (lines.isEmpty ? ["No sessions"] : lines)).joined(separator: "\n\n")
+        label.stringValue = (["Connected to \(sourceName)"] + (lines.isEmpty ? ["No sessions"] : lines)).joined(separator: "\n\n")
         onChange?(ordered)
     }
 
@@ -91,6 +97,11 @@ final class MockDebugClient {
         sessions.replace(with: [])
         label.stringValue = message
         onChange?([])
+    }
+
+    func stop() {
+        connection.cancel()
+        window.orderOut(nil)
     }
 }
 #endif

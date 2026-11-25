@@ -6,7 +6,7 @@
 
 | Событие | Codex | Claude Code | Применение в Display Corners |
 | --- | --- | --- | --- |
-| Начало работы | UserPromptSubmit | UserPromptSubmit | Кандидат на подтверждение работы для данного session_id. |
+| Отправка запроса | UserPromptSubmit | UserPromptSubmit | Само событие не подтверждает, что агент начал работу. |
 | Запрос разрешения | PermissionRequest | PermissionRequest | Кандидат на waiting_for_user. Сам hook не принимает решение вместо пользователя. |
 | Следующее событие инструмента | PostToolUse | PostToolUse, PostToolUseFailure | Подтверждённая активность после запроса может снять ожидание. Отказ или отмену нужно проверить отдельно. |
 | Окончание хода | Stop, Interrupt | Stop, StopFailure | Не считать автоматически завершением сессии. Значение для отображения результата пока отложено. |
