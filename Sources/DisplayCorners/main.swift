@@ -1,9 +1,15 @@
 import AppKit
 import CornerGeometry
+#if DEBUG
+import SessionList
+#endif
 
 @MainActor
 final class CornerView: NSView {
     let corner: Corner
+    #if DEBUG
+    var mockState: String?
+    #endif
 
     init(corner: Corner, frame: NSRect) {
         self.corner = corner
@@ -29,6 +35,12 @@ final class CornerView: NSView {
         context.closePath()
         context.fillPath()
         context.restoreGState()
+        #if DEBUG
+        if corner == .bottomRight, let mockState, r >= CornerRadius.minimumForAgent {
+            (mockState == "waiting_for_user" ? NSColor.systemOrange : NSColor.systemBlue).setFill()
+            NSBezierPath(ovalIn: NSRect(x: r - 7, y: 2, width: 5, height: 5)).fill()
+        }
+        #endif
     }
 }
 
@@ -41,6 +53,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var showTop = true
     private var showBottom = true
     private var radius: Double = 36
+    #if DEBUG
+    private var mockClient: MockDebugClient?
+    private var mockState: String?
+    private var mockSessions: [AgentSession] = []
+    private var mockMenu: AnyObject?
+    #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         migrateSettings()
@@ -56,6 +74,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         rebuildMenu()
         refreshWindows()
+        #if DEBUG
+        if let path = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"], !path.isEmpty {
+            print("Mock radius: selected \(radius) pt, effective \(effectiveRadius) pt")
+            let client = MockDebugClient(path: path)
+            if #available(macOS 26, *) { mockMenu = MockCornerMenu() }
+            client.onChange = { [weak self] sessions in
+                guard let self else { return }
+                self.mockSessions = sessions
+                let states = sessions.map(\.state)
+                self.mockState = states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil
+                self.refreshWindows()
+            }
+            client.onReopen = { [weak self] in
+                if #available(macOS 26, *), let menu = self?.mockMenu as? MockCornerMenu {
+                    menu.reopenForDebug()
+                }
+            }
+            mockClient = client
+            client.start()
+        }
+        #endif
     }
 
     private func migrateSettings() {
@@ -72,13 +111,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func screensChanged() { refreshWindows() }
 
+    private var effectiveRadius: CGFloat {
+        #if DEBUG
+        let hasHooks = !(ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"] ?? "").isEmpty
+        #else
+        let hasHooks = false
+        #endif
+        return CornerRadius.effective(selected: CGFloat(radius), agentHooksInstalled: hasHooks)
+    }
+
     private func refreshWindows() {
+        #if DEBUG
+        if #available(macOS 26, *), let menu = mockMenu as? MockCornerMenu {
+            menu.update(sessions: mockSessions, radius: effectiveRadius, enabled: enabled && showBottom)
+        }
+        #endif
         windows.forEach { $0.orderOut(nil) }
         windows.removeAll()
         guard enabled else { return }
         for screen in NSScreen.screens {
             for corner in Corner.allCases where corner.isTop ? showTop : showBottom {
-                let frame = corner.frame(on: screen.frame, radius: CGFloat(radius))
+                let frame = corner.frame(on: screen.frame, radius: effectiveRadius)
                 let window = NSPanel(contentRect: frame, styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
                 window.isOpaque = false
                 window.backgroundColor = .clear
@@ -87,7 +140,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.screenSaverWindow)) - 1)
                 window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
                 window.hidesOnDeactivate = false
-                window.contentView = CornerView(corner: corner, frame: NSRect(origin: .zero, size: frame.size))
+                let view = CornerView(corner: corner, frame: NSRect(origin: .zero, size: frame.size))
+                #if DEBUG
+                view.mockState = mockState
+                #endif
+                window.contentView = view
                 window.orderFrontRegardless()
                 windows.append(window)
             }
@@ -122,9 +179,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private var radiusTitle: String {
-        String.localizedStringWithFormat(
+        let title = String.localizedStringWithFormat(
             NSLocalizedString("Radius: %lld pt", comment: "Corner radius in points"), Int64(radius)
         )
+        #if DEBUG
+        if effectiveRadius != CGFloat(radius) {
+            return "\(title) → \(Int(effectiveRadius)) pt"
+        }
+        #endif
+        return title
     }
 
     private func addToggle(to menu: NSMenu, title: String, action: Selector, on: Bool) {
