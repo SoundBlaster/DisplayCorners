@@ -1,15 +1,12 @@
 import AppKit
+import AgentRuntime
 import CornerGeometry
-#if DEBUG
 import SessionList
-#endif
 
 @MainActor
 final class CornerView: NSView {
     let corner: Corner
-    #if DEBUG
     var mockState: String?
-    #endif
 
     init(corner: Corner, frame: NSRect) {
         self.corner = corner
@@ -35,12 +32,10 @@ final class CornerView: NSView {
         context.closePath()
         context.fillPath()
         context.restoreGState()
-        #if DEBUG
         if corner == .bottomRight, let mockState, r >= CornerRadius.minimumForAgent {
             (mockState == "waiting_for_user" ? NSColor.systemOrange : NSColor.systemBlue).setFill()
             NSBezierPath(ovalIn: NSRect(x: r - 7, y: 2, width: 5, height: 5)).fill()
         }
-        #endif
     }
 }
 
@@ -64,6 +59,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var codexOutput: Pipe?
     private var codexOutputBuffer = Data()
     private var codexGeneration = UUID()
+    #else
+    private var mockState: String?
+    private var agentSessions: [AgentSession] = []
+    private var agentMenu: AnyObject?
+    private var agentSettings: AnyObject?
+    private var agentMonitor: CodexMonitor?
+    private var hooksInstalled = false
+    private var monitoring = false
     #endif
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -95,6 +98,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             attachDebugSource(path)
         }
         if ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_FIXTURE"] == "1" { refreshWindows() }
+        #else
+        if #available(macOS 26, *) {
+            let executable = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/DisplayCornersHook")
+            agentMenu = MockCornerMenu()
+            let monitor = CodexMonitor()
+            monitor.onChange = { [weak self] sessions in
+                guard let self else { return }
+                self.agentSessions = sessions
+                let states = sessions.map(\.state)
+                self.mockState = states.contains("waiting_for_user") ? "waiting_for_user" : states.contains("working") ? "working" : nil
+                self.refreshWindows()
+            }
+            agentMonitor = monitor
+            if let settings = ReleaseAgentSettings(executable: executable) {
+                agentSettings = settings
+                settings.onInstallationChange = { [weak self] installed in self?.setReleaseHooks(installed) }
+                settings.refresh()
+                if CommandLine.arguments.contains("--settings") { settings.show() }
+            }
+        }
         #endif
     }
 
@@ -191,6 +214,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) { stopCodexAdapter() }
 
     @objc private func openAgentSettings() { codexSettings?.show() }
+    #else
+    private func setReleaseHooks(_ installed: Bool) {
+        hooksInstalled = installed
+        if installed && !monitoring {
+            do {
+                try agentMonitor?.start()
+                monitoring = true
+                if #available(macOS 26, *) { (agentSettings as? ReleaseAgentSettings)?.clearRuntimeError() }
+            } catch {
+                if #available(macOS 26, *) { (agentSettings as? ReleaseAgentSettings)?.showRuntimeError(error) }
+            }
+        } else if !installed && monitoring {
+            monitoring = false
+            agentMonitor?.stop()
+        }
+        rebuildMenu()
+        refreshWindows()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) { agentMonitor?.stop() }
+
+    @objc private func openAgentSettings() {
+        if #available(macOS 26, *) { (agentSettings as? ReleaseAgentSettings)?.show() }
+    }
     #endif
 
     private func migrateSettings() {
@@ -211,7 +258,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         let hasHooks = codexHooksInstalled || !(ProcessInfo.processInfo.environment["DISPLAY_CORNERS_MOCK_SOCKET"] ?? "").isEmpty
         #else
-        let hasHooks = false
+        let hasHooks = hooksInstalled
         #endif
         return CornerRadius.effective(selected: CGFloat(radius), agentHooksInstalled: hasHooks)
     }
@@ -220,6 +267,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if #available(macOS 26, *), let menu = mockMenu as? MockCornerMenu {
             menu.update(sessions: mockSessions, radius: effectiveRadius, enabled: enabled && showBottom)
+        }
+        #else
+        if #available(macOS 26, *), let menu = agentMenu as? MockCornerMenu {
+            menu.update(sessions: agentSessions, radius: effectiveRadius, enabled: enabled && showBottom)
         }
         #endif
         windows.forEach { $0.orderOut(nil) }
@@ -237,9 +288,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary, .ignoresCycle]
                 window.hidesOnDeactivate = false
                 let view = CornerView(corner: corner, frame: NSRect(origin: .zero, size: frame.size))
-                #if DEBUG
                 view.mockState = mockState
-                #endif
                 window.contentView = view
                 window.orderFrontRegardless()
                 windows.append(window)
@@ -272,6 +321,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let agentSettings = NSMenuItem(title: NSLocalizedString("Agent Settings…", comment: "Open agent settings"), action: #selector(openAgentSettings), keyEquivalent: "")
         agentSettings.target = self
         menu.addItem(agentSettings)
+        #else
+        if #available(macOS 26, *) {
+            let item = NSMenuItem(title: NSLocalizedString("Agent Settings…", comment: "Open agent settings"), action: #selector(openAgentSettings), keyEquivalent: "")
+            item.target = self
+            menu.addItem(item)
+        }
         #endif
         menu.addItem(.separator())
         let quit = NSMenuItem(title: NSLocalizedString("Quit Display Corners", comment: "Quit the application"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -283,11 +338,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let title = String.localizedStringWithFormat(
             NSLocalizedString("Radius: %lld pt", comment: "Corner radius in points"), Int64(radius)
         )
-        #if DEBUG
         if effectiveRadius != CGFloat(radius) {
             return "\(title) → \(Int(effectiveRadius)) pt"
         }
-        #endif
         return title
     }
 

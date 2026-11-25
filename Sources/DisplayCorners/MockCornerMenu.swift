@@ -1,4 +1,3 @@
-#if DEBUG
 import AppKit
 import CornerGeometry
 import Observation
@@ -26,7 +25,13 @@ final class MockCornerMenu {
     private var lastInside = Date.distantPast
     private var radius: CGFloat = 36
     private var enabled = false
+    #if DEBUG
     private let fixture = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_FIXTURE"] == "1"
+    private let simulatedHover = ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_SIMULATE_HOVER"] == "1"
+    #else
+    private let fixture = false
+    private let simulatedHover = false
+    #endif
 
     private var capacity: Int {
         let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
@@ -64,7 +69,7 @@ final class MockCornerMenu {
     private func checkPointer() {
         guard enabled, !sessions.isEmpty || panel != nil else { return }
         let pointer: NSPoint
-        if (fixture || ProcessInfo.processInfo.environment["DISPLAY_CORNERS_DEBUG_SIMULATE_HOVER"] == "1"),
+        if (fixture || simulatedHover),
            let screen = NSScreen.main {
             pointer = NSPoint(x: screen.frame.maxX - 1, y: screen.frame.minY + 1)
         } else {
@@ -108,7 +113,9 @@ final class MockCornerMenu {
         panel = window
         refreshPanel()
         window.orderFrontRegardless()
+        #if DEBUG
         print("Mock menu opened at \(frame) on screen \(screen.frame)")
+        #endif
     }
 
     private func refreshPanel() {
@@ -125,11 +132,15 @@ final class MockCornerMenu {
         model.rows = visible.rows
         model.radius = actualRadius
         model.height = height
+        #if DEBUG
         print("Mock menu rows: \(visible.rows.map { "\($0.id):\($0.isAvailable ? $0.session.state : "unavailable")" }), frame: \(frame)")
+        #endif
     }
 
     private func hide() {
+        #if DEBUG
         if panel != nil { print("Mock menu closed") }
+        #endif
         panel?.orderOut(nil)
         panel = nil
         visible.close()
@@ -198,4 +209,3 @@ private struct MockSessionList: View {
             cornerRadius: AgentMenuGeometry.menuRadius(maskRadius: model.radius), style: .circular))
     }
 }
-#endif
