@@ -47,11 +47,19 @@ final class CornerGeometryTests: XCTestCase {
         XCTAssertEqual(CornerRadius.effective(selected: 36, agentHooksInstalled: true), 36)
     }
 
-    func testAgentDotFitsInsideMinimumCorner() {
-        let radius = CornerRadius.minimumForAgent
-        let dotRadius: CGFloat = 2.5
-        let centerOffset: CGFloat = 4.5
-        let clearance = sqrt(2) * (radius - centerOffset) - radius - dotRadius
-        XCTAssertGreaterThan(clearance, 1)
+    func testAgentDotFitsAndStaysNearCenterOfMask() {
+        for radius: CGFloat in [24, 36, 80, 120] {
+            let dot = AgentIndicatorGeometry.frame(maskRadius: radius)
+            let offsetFromRight = radius - dot.midX
+            let offsetFromBottom = dot.midY
+            let clearanceFromCurve = hypot(radius - offsetFromRight, radius - offsetFromBottom) - radius - dot.width / 2
+            XCTAssertEqual(dot.size, CGSize(width: 5, height: 5))
+            XCTAssertEqual(offsetFromRight, offsetFromBottom, accuracy: 0.001)
+            XCTAssertGreaterThan(offsetFromBottom, radius * 0.15)
+            XCTAssertLessThan(offsetFromBottom, radius * 0.25)
+            XCTAssertGreaterThan(dot.minY, 0)
+            XCTAssertLessThan(dot.maxX, radius)
+            XCTAssertGreaterThan(clearanceFromCurve, 0)
+        }
     }
 }
