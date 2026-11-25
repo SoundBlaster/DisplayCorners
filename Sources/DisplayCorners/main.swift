@@ -34,7 +34,7 @@ final class CornerView: NSView {
         context.restoreGState()
         if corner == .bottomRight, let mockState, r >= CornerRadius.minimumForAgent {
             (mockState == "waiting_for_user" ? NSColor.systemOrange : NSColor.systemBlue).setFill()
-            NSBezierPath(ovalIn: NSRect(x: r - 7, y: 2, width: 5, height: 5)).fill()
+            NSBezierPath(ovalIn: AgentIndicatorGeometry.frame(maskRadius: r)).fill()
         }
     }
 }

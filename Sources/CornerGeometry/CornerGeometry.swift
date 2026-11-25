@@ -8,6 +8,14 @@ public enum CornerRadius {
     }
 }
 
+public enum AgentIndicatorGeometry {
+    public static func frame(maskRadius: CGFloat) -> CGRect {
+        let size: CGFloat = 5
+        let inset = maskRadius * 0.2
+        return CGRect(x: maskRadius - inset - size / 2, y: inset - size / 2, width: size, height: size)
+    }
+}
+
 public enum AgentMenuGeometry {
     public static let minimumInset: CGFloat = 4
     public static let maximumMenuRadius: CGFloat = 20
