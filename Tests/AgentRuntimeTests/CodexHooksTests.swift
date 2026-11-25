@@ -1,8 +1,31 @@
 import Foundation
+import SessionList
 import XCTest
 @testable import AgentRuntime
 
 final class CodexHooksTests: XCTestCase {
+    func testNavigationUsesSelectedSessionAndRejectsUnavailableRows() throws {
+        let first = AgentSession(id: "11111111-1111-4111-8111-111111111111", state: "working", agent: "Codex")
+        let second = AgentSession(id: "22222222-2222-4222-8222-222222222222", state: "unknown", agent: "Codex")
+        var list = VisibleSessionList()
+        list.open([first, second])
+        XCTAssertEqual(CodexNavigation.url(for: list.rows[0])?.absoluteString, "codex://threads/\(first.id)")
+        XCTAssertEqual(CodexNavigation.url(for: list.rows[1])?.absoluteString, "codex://threads/\(second.id)")
+        list.update([second], capacity: 2)
+        XCTAssertNil(CodexNavigation.url(for: list.rows[0]))
+        XCTAssertEqual(CodexNavigation.url(for: list.rows[1])?.absoluteString, "codex://threads/\(second.id)")
+    }
+
+    func testNavigationRejectsOtherAgentsAndUnsafeIdentifiers() {
+        var list = VisibleSessionList()
+        list.open([
+            AgentSession(id: "11111111-1111-4111-8111-111111111111", state: "working", agent: "Claude"),
+            AgentSession(id: "11111111-1111-4111-8111-111111111111?view=review", state: "working", agent: "Codex"),
+            AgentSession(id: "preview", state: "working", agent: "Codex"),
+        ])
+        XCTAssertTrue(list.rows.allSatisfy { CodexNavigation.url(for: $0) == nil })
+    }
+
     @MainActor
     func testHookEventReachesMonitor() async throws {
         let directory = URL(fileURLWithPath: "/tmp/dc-test-\(getpid())-\(UUID().uuidString.prefix(8))")
@@ -16,6 +39,27 @@ final class CodexHooksTests: XCTestCase {
         try monitor.start()
         defer { monitor.stop() }
         CodexHook.send(try JSONSerialization.data(withJSONObject: ["session_id": "s1", "hook_event_name": "PostToolUse"]), to: socket)
+        await fulfillment(of: [received], timeout: 3)
+    }
+
+    @MainActor
+    func testHookSessionIDBecomesNavigationTarget() async throws {
+        let directory = URL(fileURLWithPath: "/tmp/dc-nav-\(getpid())-\(UUID().uuidString.prefix(8))")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let socket = directory.appendingPathComponent("events.sock")
+        let monitor = CodexMonitor(socketURL: socket)
+        let received = expectation(description: "hook session is navigable")
+        let id = "33333333-3333-4333-8333-333333333333"
+        monitor.onChange = { sessions in
+            guard let session = sessions.first(where: { $0.id == id }) else { return }
+            var list = VisibleSessionList()
+            list.open([session])
+            XCTAssertEqual(CodexNavigation.url(for: list.rows[0])?.absoluteString, "codex://threads/\(id)")
+            received.fulfill()
+        }
+        try monitor.start()
+        defer { monitor.stop() }
+        CodexHook.send(try JSONSerialization.data(withJSONObject: ["session_id": id, "hook_event_name": "PostToolUse"]), to: socket)
         await fulfillment(of: [received], timeout: 3)
     }
 

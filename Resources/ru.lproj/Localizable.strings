@@ -13,3 +13,5 @@
 "Could not start Codex adapter. Hooks remain installed." = "Не удалось запустить адаптер Codex. Hooks остаются установленными.";
 
 "Untitled session" = "Сессия без названия";
+"Could not open Codex" = "Не удалось открыть Codex";
+"Make sure Codex is installed and try again." = "Убедитесь, что Codex установлен, и попробуйте ещё раз.";
