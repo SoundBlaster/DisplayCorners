@@ -1,4 +1,5 @@
 import AppKit
+import AgentRuntime
 import CornerGeometry
 import Observation
 import SessionList
@@ -10,6 +11,7 @@ private final class MockRowsModel {
     var rows: [VisibleSession] = []
     var radius: CGFloat = 24
     var height: CGFloat = 57
+    var openSession: (String) -> Void = { _ in }
 }
 
 @available(macOS 26, *)
@@ -32,6 +34,23 @@ final class MockCornerMenu {
     private let fixture = false
     private let simulatedHover = false
     #endif
+
+    init() {
+        model.openSession = { [weak self] id in self?.openSession(id) }
+    }
+
+    private func openSession(_ id: String) {
+        guard let row = visible.rows.first(where: { $0.id == id }),
+              let url = CodexNavigation.url(for: row) else { return }
+        if NSWorkspace.shared.open(url) {
+            hide()
+        } else {
+            let alert = NSAlert()
+            alert.messageText = NSLocalizedString("Could not open Codex", comment: "Codex session navigation failed")
+            alert.informativeText = NSLocalizedString("Make sure Codex is installed and try again.", comment: "Codex session navigation failed help")
+            alert.runModal()
+        }
+    }
 
     private var capacity: Int {
         let actualRadius = AgentMenuGeometry.maskRadius(radius, on: screenFrame)
@@ -161,45 +180,52 @@ private struct MockSessionList: View {
         ScrollView(.vertical) {
             VStack(spacing: 0) {
                 ForEach(model.rows) { row in
-                    HStack(alignment: .top, spacing: 10) {
-                        Circle()
-                            .fill(!row.isAvailable ? .gray : row.session.state == "waiting_for_user" ? .orange : row.session.state == "working" ? .blue : .gray)
-                            .frame(width: 8, height: 8)
-                            .padding(.top, 5)
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack {
-                                if let title = row.session.title {
-                                    Text(verbatim: title).fontWeight(.semibold).lineLimit(1)
-                                } else {
-                                    Text("Untitled session", comment: "Session title unavailable")
-                                        .fontWeight(.semibold).lineLimit(1)
+                    Button {
+                        model.openSession(row.id)
+                    } label: {
+                        HStack(alignment: .top, spacing: 10) {
+                            Circle()
+                                .fill(!row.isAvailable ? .gray : row.session.state == "waiting_for_user" ? .orange : row.session.state == "working" ? .blue : .gray)
+                                .frame(width: 8, height: 8)
+                                .padding(.top, 5)
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack {
+                                    if let title = row.session.title {
+                                        Text(verbatim: title).fontWeight(.semibold).lineLimit(1)
+                                    } else {
+                                        Text("Untitled session", comment: "Session title unavailable")
+                                            .fontWeight(.semibold).lineLimit(1)
+                                    }
+                                    Spacer(minLength: 8)
+                                    if row.session.agent == "Codex",
+                                       let url = Bundle.main.url(forResource: "codex", withExtension: "png"),
+                                       let icon = NSImage(contentsOf: url) {
+                                        Image(nsImage: icon)
+                                            .renderingMode(.template)
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 17, height: 17)
+                                            .foregroundStyle(.secondary)
+                                            .accessibilityLabel("Codex")
+                                    } else {
+                                        Image(systemName: "terminal")
+                                            .foregroundStyle(.secondary)
+                                            .accessibilityLabel(Text(verbatim: row.session.agent ?? "Mock Agent"))
+                                    }
                                 }
-                                Spacer(minLength: 8)
-                                if row.session.agent == "Codex",
-                                   let url = Bundle.main.url(forResource: "codex", withExtension: "png"),
-                                   let icon = NSImage(contentsOf: url) {
-                                    Image(nsImage: icon)
-                                        .renderingMode(.template)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 17, height: 17)
-                                        .foregroundStyle(.secondary)
-                                        .accessibilityLabel("Codex")
-                                } else {
-                                    Image(systemName: "terminal")
-                                        .foregroundStyle(.secondary)
-                                        .accessibilityLabel(Text(verbatim: row.session.agent ?? "Mock Agent"))
-                                }
+                                Text(verbatim: row.isAvailable ? row.session.state : "unavailable")
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
                             }
-                            Text(verbatim: row.isAvailable ? row.session.state : "unavailable")
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
                         }
+                        .font(.system(size: 13))
+                        .frame(height: 57)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .contentShape(Rectangle())
                     }
-                    .font(.system(size: 13))
-                    .frame(height: 57)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
+                    .buttonStyle(.plain)
+                    .disabled(CodexNavigation.url(for: row) == nil)
                 }
             }
             .frame(minHeight: model.height, alignment: .bottom)

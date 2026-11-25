@@ -13,3 +13,5 @@
 "Could not start Codex adapter. Hooks remain installed." = "Could not start Codex adapter. Hooks remain installed.";
 
 "Untitled session" = "Untitled session";
+"Could not open Codex" = "Could not open Codex";
+"Make sure Codex is installed and try again." = "Make sure Codex is installed and try again.";
