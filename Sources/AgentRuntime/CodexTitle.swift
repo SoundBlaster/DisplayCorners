@@ -9,6 +9,8 @@ enum CodexTitle {
             .first(where: { FileManager.default.isExecutableFile(atPath: $0.path) }) else { return nil }
         let process = Process()
         let input = Pipe(), output = Pipe()
+        // A closed app-server stdin must fail this lookup, not terminate the app.
+        guard fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) == 0 else { return nil }
         process.executableURL = executable
         process.arguments = ["app-server"]
         var environment = ProcessInfo.processInfo.environment
